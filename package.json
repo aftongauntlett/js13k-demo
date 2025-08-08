@@ -4,19 +4,12 @@
   "description": "A zen-like puzzle game for js13k competition",
   "main": "index.html",
   "scripts": {
-    "dev": "python3 -m http.server 8080",
+    "dev": "python3 -m http.server 8080 --directory src",
     "start": "npm run dev",
-    "build": "cp -r src/* dist/ || mkdir -p dist && cp src/* dist/",
-    "size": "echo 'Size check coming soon'",
-    "deploy": "vercel --prod"
+    "build": "node build/build.js",
+    "size": "npm run build"
   },
-  "keywords": [
-    "js13k",
-    "game",
-    "canvas",
-    "procedural"
-  ],
+  "keywords": ["js13k", "game", "canvas"],
   "author": "Afton Gauntlett",
-  "license": "MIT",
-  "devDependencies": {}
+  "license": "MIT"
 }

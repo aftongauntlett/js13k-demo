@@ -37,20 +37,19 @@ This project serves as a **learning experience**:
 ```
 js13k-demo/
 ├── README.md              # Project documentation
-├── DEVLOG.md             # Development log and commit history
-├── src/                  # Source files (development)
+├── src/                   # Source files (modular development)
 │   ├── index.html        # Main HTML template
-│   ├── game.js           # Core game logic
-│   ├── physics.js        # Particle physics system
-│   ├── renderer.js       # Canvas rendering engine
-│   └── audio.js          # Procedural audio system
+│   ├── Game.js           # Main game class and logic
+│   ├── components/       # Game components
+│   │   └── Firefly.js    # Firefly particles with sparkles
+│   └── systems/          # Game systems
+│       ├── Renderer.js   # Background and visual effects
+│       └── InputSystem.js # Mouse input handling
 ├── build/                # Build tools and scripts
-│   ├── minify.js         # Minification script
-│   ├── package.json      # Build dependencies
-│   └── compress.js       # Final compression
-└── dist/                 # Final game output
-    ├── index.html        # Minified single-file game
-    └── game.zip          # Competition submission
+│   └── build.js          # Combines files into single HTML
+├── dist/                 # Final game output
+│   └── index.html        # Minified single-file game
+└── package.json          # Build scripts and dependencies
 ```
 
 ## Development
@@ -62,20 +61,16 @@ js13k-demo/
 git clone https://github.com/aftongauntlett/js13k-demo.git
 cd js13k-demo
 
-# Install build dependencies
-npm install
-
-# Start development server
+# Start modular development server
 npm run dev
+# → Access at http://localhost:8080
 
-# Build for production
+# Build single file for production
 npm run build
+# → Creates dist/index.html
 
 # Check final size
 npm run size
-
-# Create competition zip
-npm run package
 ```
 
 ### Development Commands
@@ -122,8 +117,9 @@ npm run clean
 ### Current Status
 
 - **Target Size**: ≤ 13,312 bytes (zipped)
-- **Current Size**: TBD
-- **Optimization Level**: Development phase
+- **Current Size**: 9.94 KB (uncompressed single file)
+- **Optimization Level**: Modular development with build system
+- **Progress**: Atmospheric fireflies with sparkle effects ✨
 
 ### Techniques Used
 

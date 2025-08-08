@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mystic Grove - js13k Game</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #0a1628;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+      }
+
+      canvas {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: crosshair;
+      }
+
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: #64ffda;
+        font-size: 12px;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="info">Mystic Grove - Move your mouse to interact</div>
+
+    <!-- Component Scripts -->
+    <script src="components/Firefly.js"></script>
+
+    <!-- System Scripts -->
+    <script src="systems/Renderer.js"></script>
+    <script src="systems/InputSystem.js"></script>
+
+    <!-- Main Game -->
+    <script src="Game.js"></script>
+
+    <!-- Game Initialization -->
+    <script>
+      // Start the game
+      const game = new Game();
+      game.start();
+    </script>
+  </body>
+</html>
