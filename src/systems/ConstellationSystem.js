@@ -56,16 +56,16 @@ class ConstellationSystem {
       {
         name: "Star",
         targets: [
-          { x: 0, y: -160 }, // Top point
-          { x: 48, y: -50 }, // Upper right inner
-          { x: 152, y: -50 }, // Right point
-          { x: 62, y: 40 }, // Lower right inner
-          { x: 94, y: 130 }, // Lower right point
-          { x: 0, y: 70 }, // Lower inner
-          { x: -94, y: 130 }, // Lower left point
-          { x: -62, y: 40 }, // Lower left inner
-          { x: -152, y: -50 }, // Left point
-          { x: -48, y: -50 }, // Upper left inner
+          { x: 0, y: -260 }, // Top point - near canvas edge
+          { x: 80, y: -80 }, // Upper right inner
+          { x: 250, y: -80 }, // Right point - near canvas edge
+          { x: 100, y: 60 }, // Lower right inner
+          { x: 155, y: 220 }, // Lower right point - near canvas edge
+          { x: 0, y: 120 }, // Lower inner
+          { x: -155, y: 220 }, // Lower left point - near canvas edge
+          { x: -100, y: 60 }, // Lower left inner
+          { x: -250, y: -80 }, // Left point - near canvas edge
+          { x: -80, y: -80 }, // Upper left inner
         ],
         difficulty: 5,
       },
@@ -74,6 +74,7 @@ class ConstellationSystem {
     this.isPatternComplete = false;
     this.completionTime = 0;
     this.showCompletionEffect = false;
+    this.gameCompleted = false; // Track if all constellations are finished
   }
 
   getCurrentPattern() {
@@ -92,6 +93,11 @@ class ConstellationSystem {
   }
 
   checkPatternCompletion(fireflies) {
+    // Skip pattern completion checking if game is finished
+    if (this.gameCompleted) {
+      return true;
+    }
+
     const targets = this.getTargetPositions();
     const pattern = this.getCurrentPattern();
 
@@ -99,7 +105,17 @@ class ConstellationSystem {
     this.occupiedTargets = new Array(targets.length).fill(false);
 
     // Need at least as many fireflies as targets
-    if (fireflies.length < targets.length) return false;
+    if (fireflies.length < targets.length) {
+      console.log(
+        `Not enough fireflies: ${fireflies.length} fireflies, ${targets.length} targets needed`
+      );
+      return false;
+    }
+
+    // Use the same progressive sizing as visual rendering for hit detection
+    // Less aggressive scaling - don't make Star pattern too tiny
+    const sizeMultiplier = 1.1 - (pattern.difficulty - 1) * 0.1; // 1.1 → 0.7 (instead of 1.2 → 0.6)
+    const effectiveRadius = this.targetRadius * sizeMultiplier;
 
     let matchedTargets = 0;
     const usedFireflies = new Set();
@@ -116,7 +132,7 @@ class ConstellationSystem {
         const dy = firefly.y - target.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < this.targetRadius && distance < closestDistance) {
+        if (distance < effectiveRadius && distance < closestDistance) {
           closestDistance = distance;
           closestFirefly = fireflyIndex;
         }
@@ -128,6 +144,7 @@ class ConstellationSystem {
         matchedTargets++;
       }
     });
+
     const wasComplete = this.isPatternComplete;
     this.isPatternComplete = matchedTargets === targets.length;
 
@@ -163,15 +180,69 @@ class ConstellationSystem {
       this.isPatternComplete = false;
       this.showCompletionEffect = false;
       console.log(`New constellation: ${this.getCurrentPattern().name}`);
+
+      // Notify game of pattern change
+      if (this.onPatternChange) {
+        this.onPatternChange();
+      }
     } else {
       console.log("All constellations completed! Final score:", this.score);
+      this.gameCompleted = true; // Mark game as completed
     }
+  }
+
+  // Manual pattern switching for testing
+  switchToNextPattern() {
+    if (this.currentPattern < this.patterns.length - 1) {
+      this.currentPattern++;
+    } else {
+      this.currentPattern = 0; // Loop back to first pattern
+    }
+    this.isPatternComplete = false;
+    this.showCompletionEffect = false;
+    console.log(`Switched to constellation: ${this.getCurrentPattern().name}`);
+
+    // Notify game of pattern change
+    if (this.onPatternChange) {
+      this.onPatternChange();
+    }
+  }
+
+  switchToPreviousPattern() {
+    if (this.currentPattern > 0) {
+      this.currentPattern--;
+    } else {
+      this.currentPattern = this.patterns.length - 1; // Loop to last pattern
+    }
+    this.isPatternComplete = false;
+    this.showCompletionEffect = false;
+    console.log(`Switched to constellation: ${this.getCurrentPattern().name}`);
+
+    // Notify game of pattern change
+    if (this.onPatternChange) {
+      this.onPatternChange();
+    }
+  }
+
+  resetGame() {
+    this.currentPattern = 0;
+    this.score = 0;
+    this.completedCount = 0;
+    this.isPatternComplete = false;
+    this.showCompletionEffect = false;
+    this.gameCompleted = false; // Reset game completion state
+    console.log("Game reset to Triangle constellation");
   }
 
   drawTargets(ctx) {
     const targets = this.getTargetPositions();
     const pattern = this.getCurrentPattern();
     const time = Date.now() * 0.001;
+
+    // Progressive target size reduction - harder levels have smaller targets
+    // Less aggressive scaling to keep Star pattern playable
+    const sizeMultiplier = 1.1 - (pattern.difficulty - 1) * 0.1; // 1.1 → 0.7
+    const effectiveRadius = this.targetRadius * sizeMultiplier;
 
     targets.forEach((target, index) => {
       const isOccupied = this.occupiedTargets[index];
@@ -183,14 +254,14 @@ class ConstellationSystem {
       const innerColor = isOccupied ? this.colors.warm : this.colors.glow;
       const glowIntensity = isOccupied ? 1.5 : 1.0;
 
-      // Outer glow - bigger and more prominent when occupied
+      // Outer glow - bigger and more prominent when occupied, scaled by difficulty
       ctx.save();
       ctx.globalAlpha = alpha * pulse * 0.4 * glowIntensity;
       ctx.fillStyle = `rgb(${outerColor})`;
       ctx.beginPath();
       const outerRadius = isOccupied
-        ? this.targetRadius * 1.8
-        : this.targetRadius * 1.5;
+        ? effectiveRadius * 1.8
+        : effectiveRadius * 1.5;
       ctx.arc(target.x, target.y, outerRadius, 0, Math.PI * 2);
       ctx.fill();
 
@@ -199,16 +270,16 @@ class ConstellationSystem {
         ctx.globalAlpha = alpha * pulse * 0.6;
         ctx.fillStyle = `rgb(${this.colors.warm})`;
         ctx.beginPath();
-        ctx.arc(target.x, target.y, this.targetRadius * 1.2, 0, Math.PI * 2);
+        ctx.arc(target.x, target.y, effectiveRadius * 1.2, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Inner circle
+      // Inner circle - scaled by difficulty
       ctx.globalAlpha = alpha * pulse * 0.8;
       ctx.strokeStyle = `rgb(${innerColor})`;
       ctx.lineWidth = isOccupied ? 3 : 2;
       ctx.beginPath();
-      ctx.arc(target.x, target.y, this.targetRadius * 0.8, 0, Math.PI * 2);
+      ctx.arc(target.x, target.y, effectiveRadius * 0.8, 0, Math.PI * 2);
       ctx.stroke();
 
       // Center dot
@@ -228,7 +299,7 @@ class ConstellationSystem {
         ctx.arc(
           target.x,
           target.y,
-          this.targetRadius * (0.6 + pulse * 0.2),
+          effectiveRadius * (0.6 + pulse * 0.2),
           0,
           Math.PI * 2
         );
@@ -297,10 +368,21 @@ class ConstellationSystem {
       85
     );
 
+    // Test controls (for development)
+    ctx.font = "12px monospace";
+    ctx.fillStyle = `rgba(${this.colors.glow}, 0.8)`;
+    ctx.textAlign = "left";
+    ctx.fillText("Test Controls:", 20, this.canvas.height - 75);
+    ctx.fillText("N = Next Pattern", 20, this.canvas.height - 60);
+    ctx.fillText("P = Previous Pattern", 20, this.canvas.height - 45);
+    ctx.fillText("C = Complete Current", 20, this.canvas.height - 30);
+    ctx.fillText("R = Reset Game", 20, this.canvas.height - 15);
+
     // Instructions
     if (this.completedCount === 0) {
       ctx.font = "14px monospace";
       ctx.fillStyle = `rgba(${this.colors.glow}, 0.7)`;
+      ctx.textAlign = "center";
       ctx.fillText(
         "Guide fireflies to the glowing targets",
         this.canvas.width / 2,

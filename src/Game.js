@@ -21,13 +21,44 @@ class Game {
     this.input = new InputSystem(this.canvas);
     this.constellations = new ConstellationSystem(this.canvas, this.colors);
 
+    // Set up pattern change callback
+    this.constellations.onPatternChange = () => {
+      this.initializeFireflies();
+    };
+
     // Initialize fireflies - adjust count based on current pattern
     this.fireflies = [];
     this.initializeFireflies();
 
+    // Set up test controls
+    this.setupTestControls();
+
     console.log(
       "Mystic Grove initialized! Guide the fireflies to form constellations."
     );
+  }
+
+  setupTestControls() {
+    // N = Next pattern
+    this.input.onKey("n", () => {
+      this.constellations.switchToNextPattern();
+    });
+
+    // P = Previous pattern
+    this.input.onKey("p", () => {
+      this.constellations.switchToPreviousPattern();
+    });
+
+    // C = Complete current pattern (for testing)
+    this.input.onKey("c", () => {
+      this.constellations.onPatternCompleted();
+    });
+
+    // R = Reset game
+    this.input.onKey("r", () => {
+      this.constellations.resetGame();
+      this.initializeFireflies(); // Still need this since resetGame doesn't trigger callback
+    });
   }
 
   initializeFireflies() {
@@ -36,11 +67,17 @@ class Game {
 
     // Create enough fireflies for the current pattern (plus some extras)
     const pattern = this.constellations.getCurrentPattern();
-    const fireflyCount = Math.max(pattern.targets.length + 3, 8);
+    // Give extra fireflies for the Star pattern since it has 10 targets
+    const baseExtra = pattern.name === "Star" ? 5 : 3;
+    const fireflyCount = Math.max(pattern.targets.length + baseExtra, 8);
 
     for (let i = 0; i < fireflyCount; i++) {
       this.fireflies.push(new Firefly(this.canvas, this.colors));
     }
+
+    console.log(
+      `${pattern.name}: Created ${fireflyCount} fireflies for ${pattern.targets.length} targets`
+    );
   }
 
   update() {
