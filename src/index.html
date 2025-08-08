@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mystic Grove - js13k Game</title>
+    <title>Quantum Chaos - js13k Game</title>
     <style>
       body {
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #0a1628;
+        background: #020408; /* Very dark laboratory background */
         display: flex;
         justify-content: center;
         align-items: center;
         height: 100vh;
-        font-family: Arial, sans-serif;
+        font-family: "Courier New", monospace; /* Scientific/technical font */
       }
 
       canvas {
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
         cursor: crosshair;
       }
 
@@ -26,23 +26,26 @@
         position: absolute;
         top: 10px;
         left: 10px;
-        color: #64ffda;
+        color: #96c8ff; /* Scientific blue */
         font-size: 12px;
-        opacity: 0.7;
+        opacity: 0.8;
+        font-family: "Courier New", monospace;
       }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="info">Mystic Grove - Guide fireflies to form constellations</div>
+    <div id="info">
+      Quantum Chaos - Guide electrons to stable orbital configurations
+    </div>
 
     <!-- Component Scripts -->
-    <script src="components/Firefly.js"></script>
+    <script src="components/Electron.js"></script>
 
     <!-- System Scripts -->
     <script src="systems/Renderer.js"></script>
     <script src="systems/InputSystem.js"></script>
-    <script src="systems/ConstellationSystem.js"></script>
+    <script src="systems/OrbitalSystem.js"></script>
 
     <!-- Main Game -->
     <script src="Game.js"></script>

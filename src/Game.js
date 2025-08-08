@@ -1,98 +1,106 @@
-// Main game class
+// Main game class - Quantum Chaos atomic physics simulation
 class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
 
-    // Color palette
+    // Atomic Physics / Chaos Theory color palette
     this.colors = {
-      bg1: "10, 22, 40", // Deep teal-blue
-      bg2: "26, 35, 50", // Slightly lighter
-      bg3: "42, 51, 66", // Mid tone
-      accent: "74, 144, 255", // Bright blue glow
-      warm: "255, 140, 66", // Burnt orange
-      sage: "135, 169, 107", // Muted sage
-      purple: "107, 70, 193", // Deep purple
-      glow: "100, 255, 218", // Cyan glow
+      // Laboratory background - very dark
+      bg1: "2, 4, 8", // Almost black
+      bg2: "5, 8, 15", // Very dark blue
+      bg3: "8, 12, 20", // Dark blue
+
+      // Electron/particle colors
+      accent: "100, 150, 255", // Electron blue
+      warm: "255, 120, 80", // High-energy orange
+      sage: "80, 200, 150", // Quantum green
+
+      // Energy field colors
+      purple: "150, 100, 255", // Plasma purple
+      glow: "150, 200, 255", // Electromagnetic field
+      quantum: "200, 220, 255", // Quantum fluctuation
     };
 
     // Initialize systems
     this.renderer = new Renderer(this.canvas, this.ctx, this.colors);
     this.input = new InputSystem(this.canvas);
-    this.constellations = new ConstellationSystem(this.canvas, this.colors);
+    this.orbitals = new OrbitalSystem(this.canvas, this.colors);
 
     // Set up pattern change callback
-    this.constellations.onPatternChange = () => {
-      this.initializeFireflies();
+    this.orbitals.onPatternChange = () => {
+      this.initializeElectrons();
     };
 
-    // Initialize fireflies - adjust count based on current pattern
-    this.fireflies = [];
-    this.initializeFireflies();
+    // Initialize electrons - adjust count based on current orbital pattern
+    this.electrons = [];
+    this.initializeElectrons();
 
     // Set up test controls
     this.setupTestControls();
 
     console.log(
-      "Mystic Grove initialized! Guide the fireflies to form constellations."
+      "Quantum Chaos initialized! Guide electrons to stable orbital configurations."
     );
   }
 
   setupTestControls() {
-    // N = Next pattern
+    // N = Next orbital pattern
     this.input.onKey("n", () => {
-      this.constellations.switchToNextPattern();
+      this.orbitals.switchToNextPattern();
     });
 
-    // P = Previous pattern
+    // P = Previous orbital pattern
     this.input.onKey("p", () => {
-      this.constellations.switchToPreviousPattern();
+      this.orbitals.switchToPreviousPattern();
     });
 
     // C = Complete current pattern (for testing)
     this.input.onKey("c", () => {
-      this.constellations.onPatternCompleted();
+      this.orbitals.onPatternCompleted();
     });
 
-    // R = Reset game
+    // R = Reset to first pattern
     this.input.onKey("r", () => {
-      this.constellations.resetGame();
-      this.initializeFireflies(); // Still need this since resetGame doesn't trigger callback
+      this.orbitals.resetGame();
+      this.initializeElectrons(); // Still need this since resetGame doesn't trigger callback
     });
   }
 
-  initializeFireflies() {
-    // Clear existing fireflies
-    this.fireflies = [];
+  initializeElectrons() {
+    // Clear existing electrons
+    this.electrons = [];
 
-    // Create enough fireflies for the current pattern (plus some extras)
-    const pattern = this.constellations.getCurrentPattern();
-    // Give extra fireflies for the Star pattern since it has 10 targets
-    const baseExtra = pattern.name === "Star" ? 5 : 3;
-    const fireflyCount = Math.max(pattern.targets.length + baseExtra, 8);
+    // Create enough electrons for the current orbital pattern (plus some extras for chaos)
+    const pattern = this.orbitals.getCurrentPattern();
+    // Add extra electrons for complex configurations
+    const baseExtra = pattern.name.includes("Neon") ? 5 : 3;
+    const electronCount = Math.max(pattern.orbitals.length + baseExtra, 8);
 
-    for (let i = 0; i < fireflyCount; i++) {
-      this.fireflies.push(new Firefly(this.canvas, this.colors));
+    for (let i = 0; i < electronCount; i++) {
+      this.electrons.push(new Electron(this.canvas, this.colors));
     }
 
     console.log(
-      `${pattern.name}: Created ${fireflyCount} fireflies for ${pattern.targets.length} targets`
+      `${pattern.name}: Created ${electronCount} electrons for ${pattern.orbitals.length} orbitals`
     );
   }
 
   update() {
     const mouse = this.input.getMouse();
 
-    // Update fireflies
-    this.fireflies.forEach((firefly) => {
-      firefly.update(mouse);
+    // Update electrons with electromagnetic field interactions
+    this.electrons.forEach((electron) => {
+      electron.update(mouse);
+      // Apply quantum tunneling effect occasionally
+      electron.quantumTunnel(0.0001);
     });
 
-    // Update constellation system
-    this.constellations.update();
+    // Update orbital system
+    this.orbitals.update();
 
-    // Check for pattern completion
-    this.constellations.checkPatternCompletion(this.fireflies);
+    // Check for orbital configuration completion
+    this.orbitals.checkPatternCompletion(this.electrons);
 
     // Update renderer
     this.renderer.update();
@@ -104,25 +112,22 @@ class Game {
     // Clear canvas
     this.renderer.clear();
 
-    // Draw atmospheric background
+    // Draw quantum field background
     this.renderer.drawBackground(mouse);
 
-    // Draw center glow effect
-    this.renderer.drawCenterGlow();
+    // Draw orbital targets
+    this.orbitals.drawTargets(this.ctx);
 
-    // Draw constellation targets
-    this.constellations.drawTargets(this.ctx);
-
-    // Draw fireflies
-    this.fireflies.forEach((firefly) => {
-      firefly.draw(this.ctx);
+    // Draw electrons
+    this.electrons.forEach((electron) => {
+      electron.draw(this.ctx);
     });
 
-    // Draw constellation connections (if pattern complete)
-    this.constellations.drawConnections(this.ctx, this.fireflies);
+    // Draw orbital connections (if configuration complete)
+    this.orbitals.drawConnections(this.ctx, this.electrons);
 
-    // Draw UI (score, instructions, etc.)
-    this.constellations.drawUI(this.ctx);
+    // Draw UI (energy level, instructions, etc.)
+    this.orbitals.drawUI(this.ctx);
   }
 
   gameLoop() {
