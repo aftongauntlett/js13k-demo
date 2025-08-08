@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mystic Grove - js13k Game</title>
+    <title>Quantum Chaos - js13k Game</title>
     <style>
       body {
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #0a1628;
+        background: #020408; /* Very dark laboratory background */
         display: flex;
         justify-content: center;
         align-items: center;
         height: 100vh;
-        font-family: Arial, sans-serif;
+        font-family: "Courier New", monospace; /* Scientific/technical font */
       }
 
       canvas {
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
         cursor: crosshair;
       }
 
@@ -26,452 +26,394 @@
         position: absolute;
         top: 10px;
         left: 10px;
-        color: #64ffda;
+        color: #96c8ff; /* Scientific blue */
         font-size: 12px;
-        opacity: 0.7;
+        opacity: 0.8;
+        font-family: "Courier New", monospace;
       }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="info">Mystic Grove - Guide fireflies to form constellations</div>
+    <div id="info">
+      Quantum Chaos - Guide electrons to stable orbital configurations
+    </div>
 
     <script>
-// Firefly particle with sparkle effects
-class Firefly {
-  constructor(canvas, colors) {
-    this.canvas = canvas;
-    this.colors = colors;
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.vx = (Math.random() - 0.5) * 0.5;
-    this.vy = (Math.random() - 0.5) * 0.5;
-    this.size = Math.random() * 1.5 + 1;
-    this.brightness = Math.random() * 0.4 + 0.3;
-    this.phase = Math.random() * Math.PI * 2;
-    this.color =
-      Math.random() > 0.7
-        ? colors.warm
-        : Math.random() > 0.4
-        ? colors.glow
-        : colors.accent;
+      // Simple electron with polarity-based physics
+      class Electron {
+        constructor(x, y, type) {
+          this.x = x;
+          this.y = y;
+          this.vx = (Math.random() - 0.5) * 2;
+          this.vy = (Math.random() - 0.5) * 2;
+          this.type = type; // 'blue' or 'orange'
+          this.radius = 8;
+          this.captured = false;
+        }
 
-    // Sparkle particles around each firefly
-    this.sparkles = [];
-    for (let i = 0; i < 6; i++) {
-      this.sparkles.push({
-        angle: ((Math.PI * 2) / 6) * i,
-        distance: Math.random() * 15 + 10,
-        phase: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.02 + 0.01,
-        brightness: Math.random() * 0.6 + 0.2,
-      });
-    }
-  }
+        update(mouseX, mouseY, orbitals) {
+          if (this.captured) return;
 
-  update(mouse) {
-    // Gentle floating movement
-    this.x += this.vx;
-    this.y += this.vy;
+          // Apply polarity-based force from mouse
+          const dx = this.x - mouseX;
+          const dy = this.y - mouseY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Mouse interaction - fireflies are attracted but also repelled at close range
-    const dx = mouse.x - this.x;
-    const dy = mouse.y - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance > 0) {
+            const force = this.type === "blue" ? -0.15 : 0.15; // Blue repels, orange attracts
+            const forceX = (dx / distance) * force;
+            const forceY = (dy / distance) * force;
 
-    if (distance < 100) {
-      // Close range - gentle repulsion
-      const force = (100 - distance) / 1000;
-      this.vx -= (dx / distance) * force;
-      this.vy -= (dy / distance) * force;
-    } else if (distance < 200) {
-      // Medium range - gentle attraction
-      const force = 0.0005;
-      this.vx += (dx / distance) * force;
-      this.vy += (dy / distance) * force;
-    }
+            this.vx += forceX;
+            this.vy += forceY;
+          }
 
-    // Limit velocity
-    this.vx *= 0.98;
-    this.vy *= 0.98;
+          // Apply friction
+          this.vx *= 0.98;
+          this.vy *= 0.98;
 
-    // Wrap around edges
-    if (this.x < 0) this.x = this.canvas.width;
-    if (this.x > this.canvas.width) this.x = 0;
-    if (this.y < 0) this.y = this.canvas.height;
-    if (this.y > this.canvas.height) this.y = 0;
+          // Update position
+          this.x += this.vx;
+          this.y += this.vy;
 
-    // Update pulsing phase
-    this.phase += 0.02;
+          // Simple boundary constraints
+          if (this.x < this.radius) {
+            this.x = this.radius;
+            this.vx = Math.abs(this.vx);
+          }
+          if (this.x > 800 - this.radius) {
+            this.x = 800 - this.radius;
+            this.vx = -Math.abs(this.vx);
+          }
+          if (this.y < this.radius) {
+            this.y = this.radius;
+            this.vy = Math.abs(this.vy);
+          }
+          if (this.y > 600 - this.radius) {
+            this.y = 600 - this.radius;
+            this.vy = -Math.abs(this.vy);
+          }
 
-    // Update sparkle particles
-    this.sparkles.forEach((sparkle) => {
-      sparkle.phase += sparkle.speed;
-      sparkle.angle += 0.005; // Slow rotation
-    });
-  }
+          // Check orbital capture
+          for (let orbital of orbitals) {
+            if (!orbital.occupied && orbital.type === this.type) {
+              const orbitalDx = this.x - orbital.x;
+              const orbitalDy = this.y - orbital.y;
+              const orbitalDistance = Math.sqrt(
+                orbitalDx * orbitalDx + orbitalDy * orbitalDy
+              );
 
-  draw(ctx) {
-    const pulse = Math.sin(this.phase) * 0.3 + 0.7;
-    const alpha = this.brightness * pulse;
+              if (orbitalDistance < orbital.radius) {
+                orbital.occupied = true;
+                this.captured = true;
+                this.x = orbital.x;
+                this.y = orbital.y;
+                break;
+              }
+            }
+          }
+        }
 
-    ctx.save();
+        draw(ctx) {
+          if (this.captured) return;
 
-    // Draw sparkle particles first (behind firefly)
-    this.sparkles.forEach((sparkle) => {
-      const sparkleAlpha = Math.sin(sparkle.phase) * 0.5 + 0.5;
-      const sparkleX = this.x + Math.cos(sparkle.angle) * sparkle.distance;
-      const sparkleY = this.y + Math.sin(sparkle.angle) * sparkle.distance;
+          ctx.save();
 
-      ctx.globalCompositeOperation = "screen";
-      ctx.fillStyle = `rgba(255, 255, 255, ${
-        sparkleAlpha * sparkle.brightness * 0.4
-      })`;
-      ctx.beginPath();
-      ctx.arc(sparkleX, sparkleY, 0.5, 0, Math.PI * 2);
-      ctx.fill();
+          // Electron glow
+          const gradient = ctx.createRadialGradient(
+            this.x,
+            this.y,
+            0,
+            this.x,
+            this.y,
+            this.radius
+          );
 
-      // Tiny glow around sparkle
-      const sparkleGlow = ctx.createRadialGradient(
-        sparkleX,
-        sparkleY,
-        0,
-        sparkleX,
-        sparkleY,
-        3
-      );
-      sparkleGlow.addColorStop(
-        0,
-        `rgba(255, 255, 255, ${sparkleAlpha * 0.2})`
-      );
-      sparkleGlow.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx.fillStyle = sparkleGlow;
-      ctx.beginPath();
-      ctx.arc(sparkleX, sparkleY, 3, 0, Math.PI * 2);
-      ctx.fill();
-    });
+          if (this.type === "blue") {
+            gradient.addColorStop(0, "rgb(150, 200, 255)");
+            gradient.addColorStop(1, "rgb(100, 150, 255)");
+          } else {
+            gradient.addColorStop(0, "rgb(255, 200, 150)");
+            gradient.addColorStop(1, "rgb(255, 150, 100)");
+          }
 
-    // Outer soft glow
-    ctx.globalCompositeOperation = "screen";
-    const outerGlow = ctx.createRadialGradient(
-      this.x,
-      this.y,
-      0,
-      this.x,
-      this.y,
-      this.size * 8
-    );
-    outerGlow.addColorStop(0, `rgba(${this.color}, ${alpha * 0.08})`);
-    outerGlow.addColorStop(0.5, `rgba(${this.color}, ${alpha * 0.03})`);
-    outerGlow.addColorStop(1, `rgba(${this.color}, 0)`);
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
 
-    ctx.fillStyle = outerGlow;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Middle glow
-    const middleGlow = ctx.createRadialGradient(
-      this.x,
-      this.y,
-      0,
-      this.x,
-      this.y,
-      this.size * 4
-    );
-    middleGlow.addColorStop(0, `rgba(${this.color}, ${alpha * 0.15})`);
-    middleGlow.addColorStop(0.7, `rgba(${this.color}, ${alpha * 0.05})`);
-    middleGlow.addColorStop(1, `rgba(${this.color}, 0)`);
-
-    ctx.fillStyle = middleGlow;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Inner bright core
-    ctx.globalCompositeOperation = "lighter";
-    const coreGlow = ctx.createRadialGradient(
-      this.x,
-      this.y,
-      0,
-      this.x,
-      this.y,
-      this.size * pulse * 2
-    );
-    coreGlow.addColorStop(0, `rgba(${this.color}, ${alpha * 0.4})`);
-    coreGlow.addColorStop(0.6, `rgba(${this.color}, ${alpha * 0.2})`);
-    coreGlow.addColorStop(1, `rgba(${this.color}, 0)`);
-
-    ctx.fillStyle = coreGlow;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * pulse * 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-  }
-}
-
-
-// Rendering system for backgrounds and effects
-class Renderer {
-  constructor(canvas, ctx, colors) {
-    this.canvas = canvas;
-    this.ctx = ctx;
-    this.colors = colors;
-    this.time = 0;
-  }
-
-  drawBackground(mouse) {
-    // Create radial gradient from center
-    const gradient = this.ctx.createRadialGradient(
-      this.canvas.width / 2,
-      this.canvas.height / 2,
-      0,
-      this.canvas.width / 2,
-      this.canvas.height / 2,
-      Math.max(this.canvas.width, this.canvas.height) * 0.7
-    );
-
-    gradient.addColorStop(0, `rgb(${this.colors.bg3})`);
-    gradient.addColorStop(0.4, `rgb(${this.colors.bg2})`);
-    gradient.addColorStop(1, `rgb(${this.colors.bg1})`);
-
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // Add subtle mouse-following light
-    const mouseGradient = this.ctx.createRadialGradient(
-      mouse.x,
-      mouse.y,
-      0,
-      mouse.x,
-      mouse.y,
-      150
-    );
-
-    mouseGradient.addColorStop(0, `rgba(${this.colors.glow}, 0.05)`);
-    mouseGradient.addColorStop(1, `rgba(${this.colors.glow}, 0)`);
-
-    this.ctx.fillStyle = mouseGradient;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  drawCenterGlow() {
-    const pulse = Math.sin(this.time * 0.02) * 0.3 + 0.7;
-
-    // Center glow
-    this.ctx.save();
-    this.ctx.globalCompositeOperation = "screen";
-
-    const centerGlow = this.ctx.createRadialGradient(
-      this.canvas.width / 2,
-      this.canvas.height / 2,
-      0,
-      this.canvas.width / 2,
-      this.canvas.height / 2,
-      100 * pulse
-    );
-
-    centerGlow.addColorStop(0, `rgba(${this.colors.purple}, 0.3)`);
-    centerGlow.addColorStop(0.5, `rgba(${this.colors.accent}, 0.1)`);
-    centerGlow.addColorStop(1, `rgba(${this.colors.accent}, 0)`);
-
-    this.ctx.fillStyle = centerGlow;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    this.ctx.restore();
-  }
-
-  clear() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-  }
-
-  update() {
-    this.time++;
-  }
-}
-
-
-// Input handling system
-class InputSystem {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-    this.keyCallbacks = new Map();
-
-    this.setupEventListeners();
-  }
-
-  setupEventListeners() {
-    this.canvas.addEventListener("mousemove", (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouse.x = e.clientX - rect.left;
-      this.mouse.y = e.clientY - rect.top;
-    });
-
-    // Keyboard event listener
-    document.addEventListener("keydown", (e) => {
-      const key = e.key.toLowerCase();
-      if (this.keyCallbacks.has(key)) {
-        e.preventDefault();
-        this.keyCallbacks.get(key)();
+          ctx.restore();
+        }
       }
-    });
-  }
 
-  // Register a callback for a specific key
-  onKey(key, callback) {
-    this.keyCallbacks.set(key.toLowerCase(), callback);
-  }
+      // Input handling system
+      class InputSystem {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
 
-  getMouse() {
-    return this.mouse;
-  }
-}
+          this.setupEventListeners();
+        }
 
+        setupEventListeners() {
+          this.canvas.addEventListener("mousemove", (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = e.clientX - rect.left;
+            this.mouse.y = e.clientY - rect.top;
+          });
+        }
+      }
 
-// Main game class
-class Game {
-  constructor() {
-    this.canvas = document.getElementById("gameCanvas");
-    this.ctx = this.canvas.getContext("2d");
+      // Simple atomic orbital system with progressive levels
+      class OrbitalSystem {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.currentLevel = 0;
+          this.score = 0;
 
-    // Color palette
-    this.colors = {
-      bg1: "10, 22, 40", // Deep teal-blue
-      bg2: "26, 35, 50", // Slightly lighter
-      bg3: "42, 51, 66", // Mid tone
-      accent: "74, 144, 255", // Bright blue glow
-      warm: "255, 140, 66", // Burnt orange
-      sage: "135, 169, 107", // Muted sage
-      purple: "107, 70, 193", // Deep purple
-      glow: "100, 255, 218", // Cyan glow
-    };
+          // Define simple atomic configurations with colored orbitals - reduced to 3 levels
+          this.levels = [
+            // Start with 2 targets
+            {
+              name: "Dipole",
+              orbitals: [
+                { x: 350, y: 300, radius: 25, type: "blue" },
+                { x: 450, y: 300, radius: 25, type: "orange" },
+              ],
+            },
+            // 3 targets
+            {
+              name: "Triangle",
+              orbitals: [
+                { x: 400, y: 250, radius: 25, type: "blue" },
+                { x: 350, y: 350, radius: 25, type: "orange" },
+                { x: 450, y: 350, radius: 25, type: "blue" },
+              ],
+            },
+            // 4 targets
+            {
+              name: "Square",
+              orbitals: [
+                { x: 350, y: 250, radius: 25, type: "blue" },
+                { x: 450, y: 250, radius: 25, type: "orange" },
+                { x: 350, y: 350, radius: 25, type: "orange" },
+                { x: 450, y: 350, radius: 25, type: "blue" },
+              ],
+            },
+          ];
 
-    // Initialize systems
-    this.renderer = new Renderer(this.canvas, this.ctx, this.colors);
-    this.input = new InputSystem(this.canvas);
-    this.constellations = new ConstellationSystem(this.canvas, this.colors);
+          this.resetLevel();
+        }
 
-    // Set up pattern change callback
-    this.constellations.onPatternChange = () => {
-      this.initializeFireflies();
-    };
+        resetLevel() {
+          this.orbitals = this.levels[this.currentLevel].orbitals.map((o) => ({
+            x: o.x,
+            y: o.y,
+            radius: o.radius,
+            type: o.type,
+            occupied: false,
+          }));
+        }
 
-    // Initialize fireflies - adjust count based on current pattern
-    this.fireflies = [];
-    this.initializeFireflies();
+        checkCompletion() {
+          return this.orbitals.every((o) => o.occupied);
+        }
 
-    // Set up test controls
-    this.setupTestControls();
+        nextLevel() {
+          if (this.checkCompletion()) {
+            this.score += (this.currentLevel + 1) * 100;
+            this.currentLevel++;
+            if (this.currentLevel >= this.levels.length) {
+              this.currentLevel = 0; // Loop back
+            }
+            this.resetLevel();
+            return true;
+          }
+          return false;
+        }
 
-    console.log(
-      "Mystic Grove initialized! Guide the fireflies to form constellations."
-    );
-  }
+        draw(ctx) {
+          // Draw orbitals
+          for (let orbital of this.orbitals) {
+            ctx.save();
 
-  setupTestControls() {
-    // N = Next pattern
-    this.input.onKey("n", () => {
-      this.constellations.switchToNextPattern();
-    });
+            // Orbital glow
+            const gradient = ctx.createRadialGradient(
+              orbital.x,
+              orbital.y,
+              0,
+              orbital.x,
+              orbital.y,
+              orbital.radius
+            );
 
-    // P = Previous pattern
-    this.input.onKey("p", () => {
-      this.constellations.switchToPreviousPattern();
-    });
+            if (orbital.occupied) {
+              if (orbital.type === "blue") {
+                gradient.addColorStop(0, "rgba(100, 150, 255, 0.6)");
+                gradient.addColorStop(1, "rgba(100, 150, 255, 0)");
+              } else {
+                gradient.addColorStop(0, "rgba(255, 150, 100, 0.6)");
+                gradient.addColorStop(1, "rgba(255, 150, 100, 0)");
+              }
+            } else {
+              if (orbital.type === "blue") {
+                gradient.addColorStop(0, "rgba(100, 150, 255, 0.3)");
+                gradient.addColorStop(1, "rgba(100, 150, 255, 0)");
+              } else {
+                gradient.addColorStop(0, "rgba(255, 150, 100, 0.3)");
+                gradient.addColorStop(1, "rgba(255, 150, 100, 0)");
+              }
+            }
 
-    // C = Complete current pattern (for testing)
-    this.input.onKey("c", () => {
-      this.constellations.onPatternCompleted();
-    });
+            ctx.fillStyle = gradient;
+            ctx.fillRect(
+              orbital.x - orbital.radius,
+              orbital.y - orbital.radius,
+              orbital.radius * 2,
+              orbital.radius * 2
+            );
 
-    // R = Reset game
-    this.input.onKey("r", () => {
-      this.constellations.resetGame();
-      this.initializeFireflies(); // Still need this since resetGame doesn't trigger callback
-    });
-  }
+            // Orbital ring
+            if (orbital.type === "blue") {
+              ctx.strokeStyle = orbital.occupied
+                ? "rgb(100, 150, 255)"
+                : "rgb(80, 120, 200)";
+            } else {
+              ctx.strokeStyle = orbital.occupied
+                ? "rgb(255, 150, 100)"
+                : "rgb(200, 120, 80)";
+            }
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(orbital.x, orbital.y, orbital.radius, 0, Math.PI * 2);
+            ctx.stroke();
 
-  initializeFireflies() {
-    // Clear existing fireflies
-    this.fireflies = [];
+            ctx.restore();
+          }
 
-    // Create enough fireflies for the current pattern (plus some extras)
-    const pattern = this.constellations.getCurrentPattern();
-    // Give extra fireflies for the Star pattern since it has 10 targets
-    const baseExtra = pattern.name === "Star" ? 5 : 3;
-    const fireflyCount = Math.max(pattern.targets.length + baseExtra, 8);
+          // Simple UI
+          ctx.fillStyle = "white";
+          ctx.font = "16px Arial";
+          ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
+          ctx.fillText(`Score: ${this.score}`, 20, 50);
+          ctx.fillText(
+            `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
+              this.orbitals.length
+            }`,
+            20,
+            70
+          );
 
-    for (let i = 0; i < fireflyCount; i++) {
-      this.fireflies.push(new Firefly(this.canvas, this.colors));
-    }
+          if (this.checkCompletion()) {
+            ctx.fillStyle = "yellow";
+            ctx.font = "24px Arial";
+            ctx.fillText("Complete! Click for next level", 200, 100);
+          }
+        }
+      }
 
-    console.log(
-      `${pattern.name}: Created ${fireflyCount} fireflies for ${pattern.targets.length} targets`
-    );
-  }
+      // Simple atomic physics game
+      class Game {
+        constructor() {
+          this.canvas = document.getElementById("gameCanvas");
+          this.ctx = this.canvas.getContext("2d");
+          this.canvas.width = 800;
+          this.canvas.height = 600;
 
-  update() {
-    const mouse = this.input.getMouse();
+          // Systems
+          this.input = new InputSystem(this.canvas);
+          this.orbitals = new OrbitalSystem(this.canvas);
 
-    // Update fireflies
-    this.fireflies.forEach((firefly) => {
-      firefly.update(mouse);
-    });
+          // Electrons
+          this.electrons = [];
+          this.spawnElectrons();
 
-    // Update constellation system
-    this.constellations.update();
+          // Mouse click to advance levels
+          this.canvas.addEventListener("click", () => {
+            if (this.orbitals.checkCompletion()) {
+              this.orbitals.nextLevel();
+              this.spawnElectrons();
+            }
+          });
 
-    // Check for pattern completion
-    this.constellations.checkPatternCompletion(this.fireflies);
+          this.gameLoop();
+        }
 
-    // Update renderer
-    this.renderer.update();
-  }
+        spawnElectrons() {
+          this.electrons = [];
 
-  render() {
-    const mouse = this.input.getMouse();
+          // Count how many of each type we need
+          const blueCount = this.orbitals.orbitals.filter(
+            (o) => o.type === "blue"
+          ).length;
+          const orangeCount = this.orbitals.orbitals.filter(
+            (o) => o.type === "orange"
+          ).length;
 
-    // Clear canvas
-    this.renderer.clear();
+          // Spawn blue electrons
+          for (let i = 0; i < blueCount; i++) {
+            this.electrons.push(
+              new Electron(
+                Math.random() * 700 + 50,
+                Math.random() * 500 + 50,
+                "blue"
+              )
+            );
+          }
 
-    // Draw atmospheric background
-    this.renderer.drawBackground(mouse);
+          // Spawn orange electrons
+          for (let i = 0; i < orangeCount; i++) {
+            this.electrons.push(
+              new Electron(
+                Math.random() * 700 + 50,
+                Math.random() * 500 + 50,
+                "orange"
+              )
+            );
+          }
+        }
 
-    // Draw center glow effect
-    this.renderer.drawCenterGlow();
+        update() {
+          for (let electron of this.electrons) {
+            electron.update(
+              this.input.mouse.x,
+              this.input.mouse.y,
+              this.orbitals.orbitals
+            );
+          }
+        }
+        draw() {
+          // Clear canvas
+          this.ctx.fillStyle = "rgb(10, 10, 20)";
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw constellation targets
-    this.constellations.drawTargets(this.ctx);
+          // Draw systems
+          this.orbitals.draw(this.ctx);
 
-    // Draw fireflies
-    this.fireflies.forEach((firefly) => {
-      firefly.draw(this.ctx);
-    });
+          for (let electron of this.electrons) {
+            electron.draw(this.ctx);
+          }
 
-    // Draw constellation connections (if pattern complete)
-    this.constellations.drawConnections(this.ctx, this.fireflies);
+          // Instructions
+          this.ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+          this.ctx.font = "12px Arial";
+          this.ctx.fillText(
+            "Orange electrons repel from mouse, blue attract | Match colors to orbitals",
+            20,
+            this.canvas.height - 20
+          );
+        }
 
-    // Draw UI (score, instructions, etc.)
-    this.constellations.drawUI(this.ctx);
-  }
+        gameLoop() {
+          this.update();
+          this.draw();
+          requestAnimationFrame(() => this.gameLoop());
+        }
+      }
 
-  gameLoop() {
-    this.update();
-    this.render();
-    requestAnimationFrame(() => this.gameLoop());
-  }
-
-  start() {
-    this.gameLoop();
-  }
-}
-
-
-// Start the game
-const game = new Game();
-game.start();
-</script>
+      // Start the game
+      const game = new Game();
+    </script>
   </body>
 </html>

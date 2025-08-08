@@ -12,10 +12,6 @@ const electronJs = fs.readFileSync(
   path.join(__dirname, "../src/components/Electron.js"),
   "utf8"
 );
-const rendererJs = fs.readFileSync(
-  path.join(__dirname, "../src/systems/Renderer.js"),
-  "utf8"
-);
 const inputJs = fs.readFileSync(
   path.join(__dirname, "../src/systems/InputSystem.js"),
   "utf8"
@@ -30,17 +26,14 @@ const gameJs = fs.readFileSync(path.join(__dirname, "../src/Game.js"), "utf8");
 const allJs = `
 ${electronJs}
 
-${rendererJs}
-
 ${inputJs}
 
 ${orbitalSystemJs}
 
 ${gameJs}
 
-// Start the quantum chaos simulation
+// Start the game
 const game = new Game();
-game.start();
 `;
 
 // Replace the script tags with inline JavaScript

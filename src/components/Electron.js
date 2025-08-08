@@ -1,156 +1,106 @@
-// Electron particle with quantum field effects
+// Simple electron with polarity-based physics
 class Electron {
-  constructor(canvas, colors) {
-    this.canvas = canvas;
-    this.colors = colors;
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.vx = (Math.random() - 0.5) * 0.5;
-    this.vy = (Math.random() - 0.5) * 0.5;
-    this.size = Math.random() * 1.5 + 1;
-    this.brightness = Math.random() * 0.4 + 0.3;
-    this.phase = Math.random() * Math.PI * 2;
-    this.color =
-      Math.random() > 0.7
-        ? colors.warm // High-energy orange
-        : Math.random() > 0.4
-        ? colors.glow // Electromagnetic field blue
-        : colors.accent; // Standard electron blue
-
-    // Quantum field fluctuations around each electron
-    this.quantumFields = [];
-    for (let i = 0; i < 6; i++) {
-      this.quantumFields.push({
-        angle: ((Math.PI * 2) / 6) * i,
-        distance: Math.random() * 15 + 10,
-        phase: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.02 + 0.01,
-        brightness: Math.random() * 0.6 + 0.2,
-      });
-    }
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 2;
+    this.vy = (Math.random() - 0.5) * 2;
+    this.type = type; // 'blue' or 'orange'
+    this.radius = 8;
+    this.captured = false;
   }
 
-  update(mouse) {
-    // Quantum motion with uncertainty
+  update(mouseX, mouseY, orbitals) {
+    if (this.captured) return;
+
+    // Apply polarity-based force from mouse
+    const dx = this.x - mouseX;
+    const dy = this.y - mouseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0) {
+      const force = this.type === "blue" ? -0.15 : 0.15; // Orange repels, blue attracts
+      const forceX = (dx / distance) * force;
+      const forceY = (dy / distance) * force;
+
+      this.vx += forceX;
+      this.vy += forceY;
+    }
+
+    // Apply friction
+    this.vx *= 0.98;
+    this.vy *= 0.98;
+
+    // Update position
     this.x += this.vx;
     this.y += this.vy;
 
-    // Mouse interaction - electrons respond to electromagnetic fields
-    const dx = mouse.x - this.x;
-    const dy = mouse.y - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < 100) {
-      // Close range - electromagnetic repulsion
-      const force = (100 - distance) / 1000;
-      this.vx -= (dx / distance) * force;
-      this.vy -= (dy / distance) * force;
-    } else if (distance < 200) {
-      // Medium range - electromagnetic attraction
-      const force = 0.0005;
-      this.vx += (dx / distance) * force;
-      this.vy += (dy / distance) * force;
+    // Simple boundary constraints
+    if (this.x < this.radius) {
+      this.x = this.radius;
+      this.vx = Math.abs(this.vx);
+    }
+    if (this.x > 800 - this.radius) {
+      this.x = 800 - this.radius;
+      this.vx = -Math.abs(this.vx);
+    }
+    if (this.y < this.radius) {
+      this.y = this.radius;
+      this.vy = Math.abs(this.vy);
+    }
+    if (this.y > 600 - this.radius) {
+      this.y = 600 - this.radius;
+      this.vy = -Math.abs(this.vy);
     }
 
-    // Apply velocity damping (energy loss)
-    this.vx *= 0.995;
-    this.vy *= 0.995;
+    // Check orbital capture
+    for (let orbital of orbitals) {
+      if (!orbital.occupied && orbital.type === this.type) {
+        const orbitalDx = this.x - orbital.x;
+        const orbitalDy = this.y - orbital.y;
+        const orbitalDistance = Math.sqrt(
+          orbitalDx * orbitalDx + orbitalDy * orbitalDy
+        );
 
-    // Keep electrons within bounds with periodic boundary conditions
-    if (this.x < 0) this.x = this.canvas.width;
-    if (this.x > this.canvas.width) this.x = 0;
-    if (this.y < 0) this.y = this.canvas.height;
-    if (this.y > this.canvas.height) this.y = 0;
-
-    // Update quantum field fluctuations
-    this.quantumFields.forEach((field) => {
-      field.phase += field.speed;
-      field.angle += 0.005; // Slow orbital rotation
-    });
-
-    // Update brightness phase for quantum uncertainty
-    this.phase += 0.02;
+        if (orbitalDistance < orbital.radius) {
+          orbital.occupied = true;
+          this.captured = true;
+          this.x = orbital.x;
+          this.y = orbital.y;
+          break;
+        }
+      }
+    }
   }
 
   draw(ctx) {
+    if (this.captured) return;
+
     ctx.save();
 
-    // Draw quantum field fluctuations first (behind electron)
-    this.quantumFields.forEach((field) => {
-      const fieldAlpha = Math.sin(field.phase) * 0.5 + 0.5;
-      const fieldX = this.x + Math.cos(field.angle) * field.distance;
-      const fieldY = this.y + Math.sin(field.angle) * field.distance;
-
-      ctx.globalAlpha = fieldAlpha * field.brightness * 0.4;
-      ctx.fillStyle = `rgb(${this.colors.quantum})`; // Quantum field color
-      ctx.beginPath();
-      ctx.arc(fieldX, fieldY, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Main electron core with quantum uncertainty
-    const coreAlpha = Math.sin(this.phase) * 0.2 + 0.8;
-    ctx.globalAlpha = coreAlpha * this.brightness;
-
-    // Electron energy glow
-    const glowGradient = ctx.createRadialGradient(
+    // Electron glow
+    const gradient = ctx.createRadialGradient(
       this.x,
       this.y,
       0,
       this.x,
       this.y,
-      this.size * 4
+      this.radius
     );
-    glowGradient.addColorStop(0, `rgba(${this.color}, 1)`);
-    glowGradient.addColorStop(0.5, `rgba(${this.color}, 0.3)`);
-    glowGradient.addColorStop(1, `rgba(${this.color}, 0)`);
 
-    ctx.fillStyle = glowGradient;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 4, 0, Math.PI * 2);
-    ctx.fill();
+    if (this.type === "blue") {
+      gradient.addColorStop(0, "rgb(150, 200, 255)");
+      gradient.addColorStop(1, "rgb(100, 150, 255)");
+    } else {
+      gradient.addColorStop(0, "rgb(255, 200, 150)");
+      gradient.addColorStop(1, "rgb(255, 150, 100)");
+    }
 
-    // Electron core
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = `rgb(${this.color})`;
+    ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
-  }
-
-  // Check if electron is within an orbital shell
-  isInTarget(target, radius) {
-    const dx = this.x - target.x;
-    const dy = this.y - target.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance <= radius;
-  }
-
-  // Apply quantum tunneling effect (for gameplay)
-  quantumTunnel(probability = 0.001) {
-    if (Math.random() < probability) {
-      // Quantum tunneling - electron can "teleport" short distances
-      this.x += (Math.random() - 0.5) * 50;
-      this.y += (Math.random() - 0.5) * 50;
-
-      // Keep in bounds
-      this.x = Math.max(0, Math.min(this.canvas.width, this.x));
-      this.y = Math.max(0, Math.min(this.canvas.height, this.y));
-    }
-  }
-
-  // Apply energy state transition
-  exciteToHigherState() {
-    this.size *= 1.1;
-    this.brightness = Math.min(1, this.brightness * 1.2);
-    this.color = this.colors.warm; // High-energy state
-  }
-
-  relaxToGroundState() {
-    this.size *= 0.95;
-    this.brightness *= 0.9;
-    this.color = this.colors.accent; // Ground state
   }
 }

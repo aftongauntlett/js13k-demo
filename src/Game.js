@@ -1,142 +1,94 @@
-// Main game class - Quantum Chaos atomic physics simulation
+// Simple atomic physics game
 class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
+    this.canvas.width = 800;
+    this.canvas.height = 600;
 
-    // Atomic Physics / Chaos Theory color palette
-    this.colors = {
-      // Laboratory background - very dark
-      bg1: "2, 4, 8", // Almost black
-      bg2: "5, 8, 15", // Very dark blue
-      bg3: "8, 12, 20", // Dark blue
-
-      // Electron/particle colors
-      accent: "100, 150, 255", // Electron blue
-      warm: "255, 120, 80", // High-energy orange
-      sage: "80, 200, 150", // Quantum green
-
-      // Energy field colors
-      purple: "150, 100, 255", // Plasma purple
-      glow: "150, 200, 255", // Electromagnetic field
-      quantum: "200, 220, 255", // Quantum fluctuation
-    };
-
-    // Initialize systems
-    this.renderer = new Renderer(this.canvas, this.ctx, this.colors);
+    // Systems
     this.input = new InputSystem(this.canvas);
-    this.orbitals = new OrbitalSystem(this.canvas, this.colors);
+    this.orbitals = new OrbitalSystem(this.canvas);
 
-    // Set up pattern change callback
-    this.orbitals.onPatternChange = () => {
-      this.initializeElectrons();
-    };
-
-    // Initialize electrons - adjust count based on current orbital pattern
+    // Electrons
     this.electrons = [];
-    this.initializeElectrons();
+    this.spawnElectrons();
 
-    // Set up test controls
-    this.setupTestControls();
+    // Mouse click to advance levels
+    this.canvas.addEventListener("click", () => {
+      if (this.orbitals.checkCompletion()) {
+        this.orbitals.nextLevel();
+        this.spawnElectrons();
+      }
+    });
 
-    console.log(
-      "Quantum Chaos initialized! Guide electrons to stable orbital configurations."
-    );
+    this.gameLoop();
   }
 
-  setupTestControls() {
-    // N = Next orbital pattern
-    this.input.onKey("n", () => {
-      this.orbitals.switchToNextPattern();
-    });
-
-    // P = Previous orbital pattern
-    this.input.onKey("p", () => {
-      this.orbitals.switchToPreviousPattern();
-    });
-
-    // C = Complete current pattern (for testing)
-    this.input.onKey("c", () => {
-      this.orbitals.onPatternCompleted();
-    });
-
-    // R = Reset to first pattern
-    this.input.onKey("r", () => {
-      this.orbitals.resetGame();
-      this.initializeElectrons(); // Still need this since resetGame doesn't trigger callback
-    });
-  }
-
-  initializeElectrons() {
-    // Clear existing electrons
+  spawnElectrons() {
     this.electrons = [];
 
-    // Create enough electrons for the current orbital pattern (plus some extras for chaos)
-    const pattern = this.orbitals.getCurrentPattern();
-    // Add extra electrons for complex configurations
-    const baseExtra = pattern.name.includes("Neon") ? 5 : 3;
-    const electronCount = Math.max(pattern.orbitals.length + baseExtra, 8);
+    // Count how many of each type we need
+    const blueCount = this.orbitals.orbitals.filter(
+      (o) => o.type === "blue"
+    ).length;
+    const orangeCount = this.orbitals.orbitals.filter(
+      (o) => o.type === "orange"
+    ).length;
 
-    for (let i = 0; i < electronCount; i++) {
-      this.electrons.push(new Electron(this.canvas, this.colors));
+    // Spawn blue electrons
+    for (let i = 0; i < blueCount; i++) {
+      this.electrons.push(
+        new Electron(Math.random() * 700 + 50, Math.random() * 500 + 50, "blue")
+      );
     }
 
-    console.log(
-      `${pattern.name}: Created ${electronCount} electrons for ${pattern.orbitals.length} orbitals`
-    );
+    // Spawn orange electrons
+    for (let i = 0; i < orangeCount; i++) {
+      this.electrons.push(
+        new Electron(
+          Math.random() * 700 + 50,
+          Math.random() * 500 + 50,
+          "orange"
+        )
+      );
+    }
   }
 
   update() {
-    const mouse = this.input.getMouse();
-
-    // Update electrons with electromagnetic field interactions
-    this.electrons.forEach((electron) => {
-      electron.update(mouse);
-      // Apply quantum tunneling effect occasionally
-      electron.quantumTunnel(0.0001);
-    });
-
-    // Update orbital system
-    this.orbitals.update();
-
-    // Check for orbital configuration completion
-    this.orbitals.checkPatternCompletion(this.electrons);
-
-    // Update renderer
-    this.renderer.update();
+    for (let electron of this.electrons) {
+      electron.update(
+        this.input.mouse.x,
+        this.input.mouse.y,
+        this.orbitals.orbitals
+      );
+    }
   }
-
-  render() {
-    const mouse = this.input.getMouse();
-
+  draw() {
     // Clear canvas
-    this.renderer.clear();
+    this.ctx.fillStyle = "rgb(10, 10, 20)";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw quantum field background
-    this.renderer.drawBackground(mouse);
+    // Draw systems
+    this.orbitals.draw(this.ctx);
 
-    // Draw orbital targets
-    this.orbitals.drawTargets(this.ctx);
-
-    // Draw electrons
-    this.electrons.forEach((electron) => {
+    for (let electron of this.electrons) {
       electron.draw(this.ctx);
-    });
+    }
 
-    // Draw orbital connections (if configuration complete)
-    this.orbitals.drawConnections(this.ctx, this.electrons);
-
-    // Draw UI (energy level, instructions, etc.)
-    this.orbitals.drawUI(this.ctx);
+    // Instructions
+    this.ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    this.ctx.font = "12px Arial";
+    this.ctx.fillText(
+      "Orange electrons repel from mouse, blue attract | Match colors to orbitals",
+      20,
+      this.canvas.height - 20
+    );
   }
 
   gameLoop() {
     this.update();
-    this.render();
+    this.draw();
     requestAnimationFrame(() => this.gameLoop());
-  }
-
-  start() {
-    this.gameLoop();
   }
 }
