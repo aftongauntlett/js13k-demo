@@ -40,380 +40,463 @@
     </div>
 
     <script>
-      // Simple electron with polarity-based physics
-      class Electron {
-        constructor(x, y, type) {
-          this.x = x;
-          this.y = y;
-          this.vx = (Math.random() - 0.5) * 2;
-          this.vy = (Math.random() - 0.5) * 2;
-          this.type = type; // 'blue' or 'orange'
-          this.radius = 8;
-          this.captured = false;
+// Simple electron with polarity-based physics
+class Electron {
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 2;
+    this.vy = (Math.random() - 0.5) * 2;
+    this.type = type; // 'blue' or 'orange'
+    this.radius = 8;
+    this.captured = false;
+    this.mouseInfluenced = false;
+  }
+
+  update(mouseX, mouseY, orbitals, orbitalSystem) {
+    if (this.captured) return;
+
+    let dx = this.x - mouseX,
+      dy = this.y - mouseY;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Track if mouse is close enough to influence electron
+    this.mouseInfluenced = distance < 150;
+
+    if (distance > 0 && this.mouseInfluenced) {
+      let force = this.type === "blue" ? -0.15 : 0.15;
+      this.vx += (dx / distance) * force;
+      this.vy += (dy / distance) * force;
+    }
+
+    this.vx *= 0.98;
+    this.vy *= 0.98;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Boundaries
+    if (this.x < this.radius) {
+      this.x = this.radius;
+      this.vx = Math.abs(this.vx);
+    }
+    if (this.x > 800 - this.radius) {
+      this.x = 800 - this.radius;
+      this.vx = -Math.abs(this.vx);
+    }
+    if (this.y < this.radius) {
+      this.y = this.radius;
+      this.vy = Math.abs(this.vy);
+    }
+    if (this.y > 600 - this.radius) {
+      this.y = 600 - this.radius;
+      this.vy = -Math.abs(this.vy);
+    }
+
+    // Orbital interactions
+    for (let orbital of orbitals) {
+      if (orbital.type === this.type) {
+        let odx = this.x - orbital.x,
+          ody = this.y - orbital.y;
+        let odist = Math.sqrt(odx * odx + ody * ody);
+
+        if (odist < orbital.radius + this.radius) {
+          if (
+            !orbital.occupied &&
+            this.mouseInfluenced &&
+            orbitalSystem.canEnterOrbital(orbital, this.x, this.y)
+          ) {
+            orbital.occupied = true;
+            this.captured = true;
+            this.x = orbital.x;
+            this.y = orbital.y;
+            break;
+          } else if (orbital.rotate && !orbital.occupied) {
+            let bounceX = odx / odist,
+              bounceY = ody / odist;
+            this.vx = bounceX * 3;
+            this.vy = bounceY * 3;
+            this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
+            this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
+          }
         }
+      }
+    }
+  }
 
-        update(mouseX, mouseY, orbitals) {
-          if (this.captured) return;
+  draw(ctx) {
+    if (this.captured) return;
 
-          // Apply polarity-based force from mouse
-          const dx = this.x - mouseX;
-          const dy = this.y - mouseY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+    ctx.save();
+    
+    // Add subtle glow when mouse-influenced
+    if (this.mouseInfluenced) {
+      ctx.shadowColor = this.type === "blue" ? "rgba(100,150,255,0.8)" : "rgba(255,150,100,0.8)";
+      ctx.shadowBlur = 15;
+    }
+    
+    let grad = ctx.createRadialGradient(
+      this.x,
+      this.y,
+      0,
+      this.x,
+      this.y,
+      this.radius
+    );
 
-          if (distance > 0) {
-            const force = this.type === "blue" ? -0.15 : 0.15; // Blue repels, orange attracts
-            const forceX = (dx / distance) * force;
-            const forceY = (dy / distance) * force;
+    if (this.type === "blue") {
+      grad.addColorStop(0, "rgb(150,200,255)");
+      grad.addColorStop(1, "rgb(100,150,255)");
+    } else {
+      grad.addColorStop(0, "rgb(255,200,150)");
+      grad.addColorStop(1, "rgb(255,150,100)");
+    }
 
-            this.vx += forceX;
-            this.vy += forceY;
-          }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
 
-          // Apply friction
-          this.vx *= 0.98;
-          this.vy *= 0.98;
 
-          // Update position
-          this.x += this.vx;
-          this.y += this.vy;
+// Input handling system
+class InputSystem {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
 
-          // Simple boundary constraints
-          if (this.x < this.radius) {
-            this.x = this.radius;
-            this.vx = Math.abs(this.vx);
-          }
-          if (this.x > 800 - this.radius) {
-            this.x = 800 - this.radius;
-            this.vx = -Math.abs(this.vx);
-          }
-          if (this.y < this.radius) {
-            this.y = this.radius;
-            this.vy = Math.abs(this.vy);
-          }
-          if (this.y > 600 - this.radius) {
-            this.y = 600 - this.radius;
-            this.vy = -Math.abs(this.vy);
-          }
+    this.setupEventListeners();
+  }
 
-          // Check orbital capture
-          for (let orbital of orbitals) {
-            if (!orbital.occupied && orbital.type === this.type) {
-              const orbitalDx = this.x - orbital.x;
-              const orbitalDy = this.y - orbital.y;
-              const orbitalDistance = Math.sqrt(
-                orbitalDx * orbitalDx + orbitalDy * orbitalDy
-              );
+  setupEventListeners() {
+    this.canvas.addEventListener("mousemove", (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      this.mouse.x = e.clientX - rect.left;
+      this.mouse.y = e.clientY - rect.top;
+    });
+  }
+}
 
-              if (orbitalDistance < orbital.radius) {
-                orbital.occupied = true;
-                this.captured = true;
-                this.x = orbital.x;
-                this.y = orbital.y;
-                break;
-              }
-            }
-          }
-        }
 
-        draw(ctx) {
-          if (this.captured) return;
+// Simple atomic orbital system with progressive levels
+class OrbitalSystem {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.currentLevel = 0;
+    this.score = 0;
+    this.time = 0;
+    this.levelTime = 30; // 30 seconds per level
 
-          ctx.save();
+    this.levels = [
+      {
+        name: "Dipole",
+        orbitals: [
+          { x: 350, y: 300, radius: 25, type: "blue", rotate: true, speed: 0.02, gap: Math.PI/3 },
+          { x: 450, y: 300, radius: 25, type: "orange" },
+        ],
+      },
+      {
+        name: "Triangle",
+        orbitals: [
+          { x: 400, y: 250, radius: 25, type: "blue", rotate: true, speed: 0.03, gap: Math.PI/4 },
+          { x: 350, y: 350, radius: 25, type: "orange" },
+          { x: 450, y: 350, radius: 25, type: "blue" },
+        ],
+      },
+      {
+        name: "Square",
+        orbitals: [
+          { x: 350, y: 250, radius: 25, type: "blue", rotate: true, speed: 0.04, gap: Math.PI/6 },
+          { x: 450, y: 250, radius: 25, type: "orange" },
+          { x: 350, y: 350, radius: 25, type: "orange" },
+          { x: 450, y: 350, radius: 25, type: "blue", rotate: true, speed: 0.035, gap: Math.PI/5 },
+        ],
+      },
+    ];
 
-          // Electron glow
-          const gradient = ctx.createRadialGradient(
-            this.x,
-            this.y,
+    this.resetLevel();
+  }
+
+  resetLevel() {
+    this.orbitals = this.levels[this.currentLevel].orbitals.map((o) => ({
+      x: o.x,
+      y: o.y,
+      radius: o.radius,
+      type: o.type,
+      occupied: false,
+      rotate: o.rotate || false,
+      speed: o.speed || 0,
+      gap: o.gap || 0,
+      angle: 0,
+    }));
+    this.time = 0;
+  }
+
+  checkCompletion() {
+    return this.orbitals.every((o) => o.occupied);
+  }
+
+  update() {
+    this.time += 1 / 60; // Assuming 60fps
+
+    // Update rotating orbitals
+    for (let orbital of this.orbitals) {
+      if (orbital.rotate) {
+        orbital.angle += orbital.speed;
+      }
+    }
+  }
+
+  // Check if electron can enter rotating orbital
+  canEnterOrbital(orbital, electronX, electronY) {
+    if (!orbital.rotate) return true;
+
+    let dx = electronX - orbital.x,
+      dy = electronY - orbital.y;
+    let electronAngle = Math.atan2(dy, dx);
+    let relativeAngle =
+      (electronAngle - orbital.angle + Math.PI * 2) % (Math.PI * 2);
+
+    return (
+      relativeAngle < orbital.gap || relativeAngle > Math.PI * 2 - orbital.gap
+    );
+  }
+
+  nextLevel() {
+    if (this.checkCompletion()) {
+      this.score += (this.currentLevel + 1) * 100;
+      this.currentLevel++;
+      if (this.currentLevel >= this.levels.length) {
+        this.currentLevel = 0; // Loop back
+      }
+      this.resetLevel();
+      return true;
+    }
+    return false;
+  }
+
+  draw(ctx) {
+    // Draw orbitals
+    for (let orbital of this.orbitals) {
+      ctx.save();
+
+      if (orbital.rotate && !orbital.occupied) {
+        // Rotating orbital with gap
+        ctx.translate(orbital.x, orbital.y);
+        ctx.rotate(orbital.angle);
+
+        ctx.strokeStyle = orbital.type === "blue" ? "rgb(80,120,200)" : "rgb(200,120,80)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(
+          0,
+          0,
+          orbital.radius,
+          orbital.gap / 2,
+          Math.PI * 2 - orbital.gap / 2
+        );
+        ctx.stroke();
+
+        // Gap indicators
+        ctx.strokeStyle = orbital.type === "blue" ? "rgba(100,150,255,0.6)" : "rgba(255,100,100,0.6)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let r1 = orbital.radius,
+          r2 = r1 + 8,
+          g = orbital.gap / 2;
+        ctx.moveTo(r1 * Math.cos(g), r1 * Math.sin(g));
+        ctx.lineTo(r2 * Math.cos(g), r2 * Math.sin(g));
+        ctx.moveTo(r1 * Math.cos(-g), r1 * Math.sin(-g));
+        ctx.lineTo(r2 * Math.cos(-g), r2 * Math.sin(-g));
+        ctx.stroke();
+
+        ctx.restore();
+      } else {
+        // Static/occupied orbital
+        let grad = ctx.createRadialGradient(
+          orbital.x,
+          orbital.y,
+          0,
+          orbital.x,
+          orbital.y,
+          orbital.radius
+        );
+        let blue = orbital.type === "blue";
+        let occ = orbital.occupied;
+
+        if (occ) {
+          grad.addColorStop(
             0,
-            this.x,
-            this.y,
-            this.radius
+            blue ? "rgba(100,150,255,0.6)" : "rgba(255,150,100,0.6)"
           );
-
-          if (this.type === "blue") {
-            gradient.addColorStop(0, "rgb(150, 200, 255)");
-            gradient.addColorStop(1, "rgb(100, 150, 255)");
-          } else {
-            gradient.addColorStop(0, "rgb(255, 200, 150)");
-            gradient.addColorStop(1, "rgb(255, 150, 100)");
-          }
-
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.restore();
-        }
-      }
-
-      // Input handling system
-      class InputSystem {
-        constructor(canvas) {
-          this.canvas = canvas;
-          this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-
-          this.setupEventListeners();
-        }
-
-        setupEventListeners() {
-          this.canvas.addEventListener("mousemove", (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouse.x = e.clientX - rect.left;
-            this.mouse.y = e.clientY - rect.top;
-          });
-        }
-      }
-
-      // Simple atomic orbital system with progressive levels
-      class OrbitalSystem {
-        constructor(canvas) {
-          this.canvas = canvas;
-          this.currentLevel = 0;
-          this.score = 0;
-
-          // Define simple atomic configurations with colored orbitals - reduced to 3 levels
-          this.levels = [
-            // Start with 2 targets
-            {
-              name: "Dipole",
-              orbitals: [
-                { x: 350, y: 300, radius: 25, type: "blue" },
-                { x: 450, y: 300, radius: 25, type: "orange" },
-              ],
-            },
-            // 3 targets
-            {
-              name: "Triangle",
-              orbitals: [
-                { x: 400, y: 250, radius: 25, type: "blue" },
-                { x: 350, y: 350, radius: 25, type: "orange" },
-                { x: 450, y: 350, radius: 25, type: "blue" },
-              ],
-            },
-            // 4 targets
-            {
-              name: "Square",
-              orbitals: [
-                { x: 350, y: 250, radius: 25, type: "blue" },
-                { x: 450, y: 250, radius: 25, type: "orange" },
-                { x: 350, y: 350, radius: 25, type: "orange" },
-                { x: 450, y: 350, radius: 25, type: "blue" },
-              ],
-            },
-          ];
-
-          this.resetLevel();
-        }
-
-        resetLevel() {
-          this.orbitals = this.levels[this.currentLevel].orbitals.map((o) => ({
-            x: o.x,
-            y: o.y,
-            radius: o.radius,
-            type: o.type,
-            occupied: false,
-          }));
-        }
-
-        checkCompletion() {
-          return this.orbitals.every((o) => o.occupied);
-        }
-
-        nextLevel() {
-          if (this.checkCompletion()) {
-            this.score += (this.currentLevel + 1) * 100;
-            this.currentLevel++;
-            if (this.currentLevel >= this.levels.length) {
-              this.currentLevel = 0; // Loop back
-            }
-            this.resetLevel();
-            return true;
-          }
-          return false;
-        }
-
-        draw(ctx) {
-          // Draw orbitals
-          for (let orbital of this.orbitals) {
-            ctx.save();
-
-            // Orbital glow
-            const gradient = ctx.createRadialGradient(
-              orbital.x,
-              orbital.y,
-              0,
-              orbital.x,
-              orbital.y,
-              orbital.radius
-            );
-
-            if (orbital.occupied) {
-              if (orbital.type === "blue") {
-                gradient.addColorStop(0, "rgba(100, 150, 255, 0.6)");
-                gradient.addColorStop(1, "rgba(100, 150, 255, 0)");
-              } else {
-                gradient.addColorStop(0, "rgba(255, 150, 100, 0.6)");
-                gradient.addColorStop(1, "rgba(255, 150, 100, 0)");
-              }
-            } else {
-              if (orbital.type === "blue") {
-                gradient.addColorStop(0, "rgba(100, 150, 255, 0.3)");
-                gradient.addColorStop(1, "rgba(100, 150, 255, 0)");
-              } else {
-                gradient.addColorStop(0, "rgba(255, 150, 100, 0.3)");
-                gradient.addColorStop(1, "rgba(255, 150, 100, 0)");
-              }
-            }
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(
-              orbital.x - orbital.radius,
-              orbital.y - orbital.radius,
-              orbital.radius * 2,
-              orbital.radius * 2
-            );
-
-            // Orbital ring
-            if (orbital.type === "blue") {
-              ctx.strokeStyle = orbital.occupied
-                ? "rgb(100, 150, 255)"
-                : "rgb(80, 120, 200)";
-            } else {
-              ctx.strokeStyle = orbital.occupied
-                ? "rgb(255, 150, 100)"
-                : "rgb(200, 120, 80)";
-            }
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(orbital.x, orbital.y, orbital.radius, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.restore();
-          }
-
-          // Simple UI
-          ctx.fillStyle = "white";
-          ctx.font = "16px Arial";
-          ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
-          ctx.fillText(`Score: ${this.score}`, 20, 50);
-          ctx.fillText(
-            `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
-              this.orbitals.length
-            }`,
-            20,
-            70
+          grad.addColorStop(
+            1,
+            blue ? "rgba(100,150,255,0)" : "rgba(255,150,100,0)"
           );
-
-          if (this.checkCompletion()) {
-            ctx.fillStyle = "yellow";
-            ctx.font = "24px Arial";
-            ctx.fillText("Complete! Click for next level", 200, 100);
-          }
-        }
-      }
-
-      // Simple atomic physics game
-      class Game {
-        constructor() {
-          this.canvas = document.getElementById("gameCanvas");
-          this.ctx = this.canvas.getContext("2d");
-          this.canvas.width = 800;
-          this.canvas.height = 600;
-
-          // Systems
-          this.input = new InputSystem(this.canvas);
-          this.orbitals = new OrbitalSystem(this.canvas);
-
-          // Electrons
-          this.electrons = [];
-          this.spawnElectrons();
-
-          // Mouse click to advance levels
-          this.canvas.addEventListener("click", () => {
-            if (this.orbitals.checkCompletion()) {
-              this.orbitals.nextLevel();
-              this.spawnElectrons();
-            }
-          });
-
-          this.gameLoop();
-        }
-
-        spawnElectrons() {
-          this.electrons = [];
-
-          // Count how many of each type we need
-          const blueCount = this.orbitals.orbitals.filter(
-            (o) => o.type === "blue"
-          ).length;
-          const orangeCount = this.orbitals.orbitals.filter(
-            (o) => o.type === "orange"
-          ).length;
-
-          // Spawn blue electrons
-          for (let i = 0; i < blueCount; i++) {
-            this.electrons.push(
-              new Electron(
-                Math.random() * 700 + 50,
-                Math.random() * 500 + 50,
-                "blue"
-              )
-            );
-          }
-
-          // Spawn orange electrons
-          for (let i = 0; i < orangeCount; i++) {
-            this.electrons.push(
-              new Electron(
-                Math.random() * 700 + 50,
-                Math.random() * 500 + 50,
-                "orange"
-              )
-            );
-          }
-        }
-
-        update() {
-          for (let electron of this.electrons) {
-            electron.update(
-              this.input.mouse.x,
-              this.input.mouse.y,
-              this.orbitals.orbitals
-            );
-          }
-        }
-        draw() {
-          // Clear canvas
-          this.ctx.fillStyle = "rgb(10, 10, 20)";
-          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-          // Draw systems
-          this.orbitals.draw(this.ctx);
-
-          for (let electron of this.electrons) {
-            electron.draw(this.ctx);
-          }
-
-          // Instructions
-          this.ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-          this.ctx.font = "12px Arial";
-          this.ctx.fillText(
-            "Orange electrons repel from mouse, blue attract | Match colors to orbitals",
-            20,
-            this.canvas.height - 20
+        } else {
+          grad.addColorStop(
+            0,
+            blue ? "rgba(100,150,255,0.3)" : "rgba(255,150,100,0.3)"
+          );
+          grad.addColorStop(
+            1,
+            blue ? "rgba(100,150,255,0)" : "rgba(255,150,100,0)"
           );
         }
 
-        gameLoop() {
-          this.update();
-          this.draw();
-          requestAnimationFrame(() => this.gameLoop());
-        }
-      }
+        ctx.fillStyle = grad;
+        ctx.fillRect(
+          orbital.x - orbital.radius,
+          orbital.y - orbital.radius,
+          orbital.radius * 2,
+          orbital.radius * 2
+        );
 
-      // Start the game
-      const game = new Game();
-    </script>
+        ctx.strokeStyle = blue
+          ? occ
+            ? "rgb(100,150,255)"
+            : "rgb(80,120,200)"
+          : occ
+          ? "rgb(255,150,100)"
+          : "rgb(200,120,80)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(orbital.x, orbital.y, orbital.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // UI
+    ctx.fillStyle = "white";
+    ctx.font = "16px Arial";
+    ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
+    ctx.fillText(`Score: ${this.score}`, 20, 50);
+    ctx.fillText(
+      `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
+        this.orbitals.length
+      }`,
+      20,
+      70
+    );
+
+    let timeLeft = Math.max(0, this.levelTime - this.time);
+    ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
+    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 90);
+
+    if (this.checkCompletion()) {
+      ctx.fillStyle = "yellow";
+      ctx.font = "24px Arial";
+      ctx.fillText("Complete! Click for next level", 200, 100);
+    } else if (timeLeft <= 0) {
+      ctx.fillStyle = "red";
+      ctx.font = "20px Arial";
+      ctx.fillText("Time's up! Click to retry", 200, 100);
+    }
+  }
+}
+
+
+// Simple atomic physics game
+class Game {
+  constructor() {
+    this.canvas = document.getElementById("gameCanvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.canvas.width = 800;
+    this.canvas.height = 600;
+
+    // Systems
+    this.input = new InputSystem(this.canvas);
+    this.orbitals = new OrbitalSystem(this.canvas);
+
+    // Electrons
+    this.electrons = [];
+    this.spawnElectrons();
+
+    // Click handler for level progression/restart
+    this.canvas.addEventListener("click", () => {
+      let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
+      if (this.orbitals.checkCompletion()) {
+        this.orbitals.nextLevel();
+        this.spawnElectrons();
+      } else if (timeLeft <= 0) {
+        this.orbitals.resetLevel();
+        this.spawnElectrons();
+      }
+    });
+
+    this.gameLoop();
+  }
+
+  spawnElectrons() {
+    this.electrons = [];
+
+    let blueCount = this.orbitals.orbitals.filter(
+      (o) => o.type === "blue"
+    ).length;
+    let orangeCount = this.orbitals.orbitals.filter(
+      (o) => o.type === "orange"
+    ).length;
+
+    for (let i = 0; i < blueCount; i++) {
+      this.electrons.push(
+        new Electron(Math.random() * 700 + 50, Math.random() * 500 + 50, "blue")
+      );
+    }
+
+    for (let i = 0; i < orangeCount; i++) {
+      this.electrons.push(
+        new Electron(
+          Math.random() * 700 + 50,
+          Math.random() * 500 + 50,
+          "orange"
+        )
+      );
+    }
+  }
+
+  update() {
+    this.orbitals.update();
+
+    for (let electron of this.electrons) {
+      electron.update(
+        this.input.mouse.x,
+        this.input.mouse.y,
+        this.orbitals.orbitals,
+        this.orbitals
+      );
+    }
+  }
+  draw() {
+    this.ctx.fillStyle = "rgb(10,10,20)";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.orbitals.draw(this.ctx);
+
+    for (let electron of this.electrons) {
+      electron.draw(this.ctx);
+    }
+
+    this.ctx.fillStyle = "rgba(255,255,255,0.7)";
+    this.ctx.font = "12px Arial";
+    this.ctx.fillText(
+      "Orange repel, blue attract | Guide electrons through rotating gaps with mouse",
+      20,
+      this.canvas.height - 20
+    );
+  }
+
+  gameLoop() {
+    this.update();
+    this.draw();
+    requestAnimationFrame(() => this.gameLoop());
+  }
+}
+
+
+// Start the game
+const game = new Game();
+</script>
   </body>
 </html>

@@ -8,34 +8,31 @@ class Electron {
     this.type = type; // 'blue' or 'orange'
     this.radius = 8;
     this.captured = false;
+    this.mouseInfluenced = false;
   }
 
-  update(mouseX, mouseY, orbitals) {
+  update(mouseX, mouseY, orbitals, orbitalSystem) {
     if (this.captured) return;
 
-    // Apply polarity-based force from mouse
-    const dx = this.x - mouseX;
-    const dy = this.y - mouseY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    let dx = this.x - mouseX,
+      dy = this.y - mouseY;
+    let distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (distance > 0) {
-      const force = this.type === "blue" ? -0.15 : 0.15; // Orange repels, blue attracts
-      const forceX = (dx / distance) * force;
-      const forceY = (dy / distance) * force;
+    // Track if mouse is close enough to influence electron
+    this.mouseInfluenced = distance < 150;
 
-      this.vx += forceX;
-      this.vy += forceY;
+    if (distance > 0 && this.mouseInfluenced) {
+      let force = this.type === "blue" ? -0.15 : 0.15;
+      this.vx += (dx / distance) * force;
+      this.vy += (dy / distance) * force;
     }
 
-    // Apply friction
     this.vx *= 0.98;
     this.vy *= 0.98;
-
-    // Update position
     this.x += this.vx;
     this.y += this.vy;
 
-    // Simple boundary constraints
+    // Boundaries
     if (this.x < this.radius) {
       this.x = this.radius;
       this.vx = Math.abs(this.vx);
@@ -53,21 +50,32 @@ class Electron {
       this.vy = -Math.abs(this.vy);
     }
 
-    // Check orbital capture
+    // Orbital interactions
     for (let orbital of orbitals) {
-      if (!orbital.occupied && orbital.type === this.type) {
-        const orbitalDx = this.x - orbital.x;
-        const orbitalDy = this.y - orbital.y;
-        const orbitalDistance = Math.sqrt(
-          orbitalDx * orbitalDx + orbitalDy * orbitalDy
-        );
+      if (orbital.type === this.type) {
+        let odx = this.x - orbital.x,
+          ody = this.y - orbital.y;
+        let odist = Math.sqrt(odx * odx + ody * ody);
 
-        if (orbitalDistance < orbital.radius) {
-          orbital.occupied = true;
-          this.captured = true;
-          this.x = orbital.x;
-          this.y = orbital.y;
-          break;
+        if (odist < orbital.radius + this.radius) {
+          if (
+            !orbital.occupied &&
+            this.mouseInfluenced &&
+            orbitalSystem.canEnterOrbital(orbital, this.x, this.y)
+          ) {
+            orbital.occupied = true;
+            this.captured = true;
+            this.x = orbital.x;
+            this.y = orbital.y;
+            break;
+          } else if (orbital.rotate && !orbital.occupied) {
+            let bounceX = odx / odist,
+              bounceY = ody / odist;
+            this.vx = bounceX * 3;
+            this.vy = bounceY * 3;
+            this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
+            this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
+          }
         }
       }
     }
@@ -78,8 +86,16 @@ class Electron {
 
     ctx.save();
 
-    // Electron glow
-    const gradient = ctx.createRadialGradient(
+    // Add subtle glow when mouse-influenced
+    if (this.mouseInfluenced) {
+      ctx.shadowColor =
+        this.type === "blue"
+          ? "rgba(100,150,255,0.8)"
+          : "rgba(255,150,100,0.8)";
+      ctx.shadowBlur = 15;
+    }
+
+    let grad = ctx.createRadialGradient(
       this.x,
       this.y,
       0,
@@ -89,18 +105,17 @@ class Electron {
     );
 
     if (this.type === "blue") {
-      gradient.addColorStop(0, "rgb(150, 200, 255)");
-      gradient.addColorStop(1, "rgb(100, 150, 255)");
+      grad.addColorStop(0, "rgb(150,200,255)");
+      grad.addColorStop(1, "rgb(100,150,255)");
     } else {
-      gradient.addColorStop(0, "rgb(255, 200, 150)");
-      gradient.addColorStop(1, "rgb(255, 150, 100)");
+      grad.addColorStop(0, "rgb(255,200,150)");
+      grad.addColorStop(1, "rgb(255,150,100)");
     }
 
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.restore();
   }
 }

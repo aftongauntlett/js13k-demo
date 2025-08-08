@@ -14,10 +14,14 @@ class Game {
     this.electrons = [];
     this.spawnElectrons();
 
-    // Mouse click to advance levels
+    // Click handler for level progression/restart
     this.canvas.addEventListener("click", () => {
+      let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
       if (this.orbitals.checkCompletion()) {
         this.orbitals.nextLevel();
+        this.spawnElectrons();
+      } else if (timeLeft <= 0) {
+        this.orbitals.resetLevel();
         this.spawnElectrons();
       }
     });
@@ -28,22 +32,19 @@ class Game {
   spawnElectrons() {
     this.electrons = [];
 
-    // Count how many of each type we need
-    const blueCount = this.orbitals.orbitals.filter(
+    let blueCount = this.orbitals.orbitals.filter(
       (o) => o.type === "blue"
     ).length;
-    const orangeCount = this.orbitals.orbitals.filter(
+    let orangeCount = this.orbitals.orbitals.filter(
       (o) => o.type === "orange"
     ).length;
 
-    // Spawn blue electrons
     for (let i = 0; i < blueCount; i++) {
       this.electrons.push(
         new Electron(Math.random() * 700 + 50, Math.random() * 500 + 50, "blue")
       );
     }
 
-    // Spawn orange electrons
     for (let i = 0; i < orangeCount; i++) {
       this.electrons.push(
         new Electron(
@@ -56,31 +57,31 @@ class Game {
   }
 
   update() {
+    this.orbitals.update();
+
     for (let electron of this.electrons) {
       electron.update(
         this.input.mouse.x,
         this.input.mouse.y,
-        this.orbitals.orbitals
+        this.orbitals.orbitals,
+        this.orbitals
       );
     }
   }
   draw() {
-    // Clear canvas
-    this.ctx.fillStyle = "rgb(10, 10, 20)";
+    this.ctx.fillStyle = "rgb(10,10,20)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw systems
     this.orbitals.draw(this.ctx);
 
     for (let electron of this.electrons) {
       electron.draw(this.ctx);
     }
 
-    // Instructions
-    this.ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    this.ctx.fillStyle = "rgba(255,255,255,0.7)";
     this.ctx.font = "12px Arial";
     this.ctx.fillText(
-      "Orange electrons repel from mouse, blue attract | Match colors to orbitals",
+      "Orange repel, blue attract | Guide electrons through rotating gaps with mouse",
       20,
       this.canvas.height - 20
     );
