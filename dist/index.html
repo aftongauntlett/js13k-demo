@@ -19,7 +19,9 @@
 
       canvas {
         border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
-        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="rgba(100,150,255,0.8)" stroke-width="2"/><circle cx="16" cy="16" r="6" fill="none" stroke="rgba(100,150,255,0.6)" stroke-width="1"/><circle cx="16" cy="16" r="2" fill="rgba(100,150,255,0.9)"/><line x1="4" y1="16" x2="12" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="20" y1="16" x2="28" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="4" x2="16" y2="12" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="20" x2="16" y2="28" stroke="rgba(100,150,255,0.7)" stroke-width="1"/></svg>') 16 16, crosshair;
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="rgba(100,150,255,0.8)" stroke-width="2"/><circle cx="16" cy="16" r="6" fill="none" stroke="rgba(100,150,255,0.6)" stroke-width="1"/><circle cx="16" cy="16" r="2" fill="rgba(100,150,255,0.9)"/><line x1="4" y1="16" x2="12" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="20" y1="16" x2="28" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="4" x2="16" y2="12" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="20" x2="16" y2="28" stroke="rgba(100,150,255,0.7)" stroke-width="1"/></svg>')
+            16 16,
+          crosshair;
       }
 
       #info {
@@ -315,46 +317,90 @@ class OrbitalSystem {
     // Orbital factory for consistent properties and smaller code
     const G3 = Math.PI / 3,
       G4 = Math.PI / 4,
+      G5 = Math.PI / 5,
       G6 = Math.PI / 6;
-    const o = (x, y, type, speed = 0.025, gap = G4) => ({
-      x,
-      y,
+
+    // Center coordinates for atomic structure
+    const CX = this.canvas.width / 2;
+    const CY = this.canvas.height / 2;
+
+    // Shell factory: (shell, position_angle, type, gap_size, rotation_speed)
+    const shell = (radius, angle, type, gap = G4, speed = 0.02) => ({
+      x: CX + Math.cos(angle) * radius,
+      y: CY + Math.sin(angle) * radius,
       type,
       speed,
       gap,
-      radius: 25,
+      radius: 20,
       rotate: true,
+      shell: radius, // Track which shell this belongs to
     });
 
+    // Real atomic structures based on Bohr model
     this.levels = [
       {
-        name: "Dipole",
+        name: "Hydrogen (H)",
+        element: "H",
+        atomicNumber: 1,
+        description: "1 electron in 1s orbital",
         orbitals: [
-          o(350, 300, "blue", 0.02, G3),
-          o(450, 300, "orange", 0.018, G3),
-          o(300, 250, "blue", 0.025, G3),
-          o(500, 350, "orange", 0.022, G3),
+          shell(60, 0, "blue", G3, 0.025), // 1s¹
         ],
       },
       {
-        name: "Triangle",
+        name: "Helium (He)",
+        element: "He",
+        atomicNumber: 2,
+        description: "2 electrons fill the first shell",
         orbitals: [
-          o(400, 250, "blue", 0.03),
-          o(350, 350, "orange", 0.026),
-          o(450, 350, "blue", 0.025),
-          o(300, 300, "orange", 0.024),
-          o(500, 300, "blue", 0.02),
+          shell(60, 0, "blue", G4, 0.022), // 1s¹
+          shell(60, Math.PI, "blue", G4, 0.022), // 1s²
         ],
       },
       {
-        name: "Square",
+        name: "Lithium (Li)",
+        element: "Li",
+        atomicNumber: 3,
+        description: "2 electrons in 1s, 1 electron in 2s",
         orbitals: [
-          o(350, 250, "blue", 0.04, G6),
-          o(450, 250, "orange", 0.032, G6),
-          o(350, 350, "orange", 0.028, G6),
-          o(450, 350, "blue", 0.035, G6),
-          o(300, 300, "blue", 0.03, G6),
-          o(500, 300, "orange", 0.025, G6),
+          // First shell (1s² - complete)
+          shell(50, 0, "blue", G6, 0.018),
+          shell(50, Math.PI, "blue", G6, 0.018),
+          // Second shell (2s¹)
+          shell(100, Math.PI / 2, "orange", G3, 0.025),
+        ],
+      },
+      {
+        name: "Carbon (C)",
+        element: "C",
+        atomicNumber: 6,
+        description: "1s² 2s² 2p²",
+        orbitals: [
+          // First shell (1s² - complete, smaller, faster)
+          shell(45, 0, "blue", G6, 0.015),
+          shell(45, Math.PI, "blue", G6, 0.015),
+          // Second shell (2s² 2p²)
+          shell(90, 0, "orange", G4, 0.02), // 2s¹
+          shell(90, Math.PI, "orange", G4, 0.02), // 2s²
+          shell(90, Math.PI / 2, "orange", G4, 0.022), // 2p¹
+          shell(90, (3 * Math.PI) / 2, "orange", G4, 0.022), // 2p²
+        ],
+      },
+      {
+        name: "Nitrogen (N)",
+        element: "N",
+        atomicNumber: 7,
+        description: "1s² 2s² 2p³",
+        orbitals: [
+          // First shell (1s²)
+          shell(40, 0, "blue", G6, 0.012),
+          shell(40, Math.PI, "blue", G6, 0.012),
+          // Second shell (2s² 2p³)
+          shell(85, 0, "orange", G4, 0.018),
+          shell(85, Math.PI, "orange", G4, 0.018),
+          shell(85, Math.PI / 2, "orange", G5, 0.02),
+          shell(85, (3 * Math.PI) / 2, "orange", G5, 0.02),
+          shell(85, Math.PI / 4, "orange", G5, 0.022),
         ],
       },
     ];
@@ -482,91 +528,154 @@ class OrbitalSystem {
       grey: "rgb(128,128,128)",
     };
 
-    // Draw orbitals
+    const level = this.levels[this.currentLevel];
+    const CX = this.canvas.width / 2;
+    const CY = this.canvas.height / 2;
+
+    // Draw nucleus at center
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 255, 100, 0.8)";
+    ctx.shadowBlur = 15;
+
+    let nucleusGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 15);
+    nucleusGrad.addColorStop(0, "rgb(255, 255, 150)");
+    nucleusGrad.addColorStop(0.7, "rgb(255, 200, 100)");
+    nucleusGrad.addColorStop(1, "rgb(200, 150, 50)");
+
+    ctx.fillStyle = nucleusGrad;
+    ctx.beginPath();
+    ctx.arc(CX, CY, 12, 0, this.TAU);
+    ctx.fill();
+
+    // Nucleus label
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgb(50, 50, 50)";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(level.element, CX, CY + 3);
+    ctx.textAlign = "left";
+    ctx.restore();
+
+    // Draw electron shells as concentric circles around nucleus
+    // Group orbitals by shell distance from center
+    const shells = {};
     for (let orbital of this.orbitals) {
+      const shellRadius = orbital.shell;
+      if (!shells[shellRadius]) shells[shellRadius] = [];
+      shells[shellRadius].push(orbital);
+    }
+
+    // Draw each shell as a complete circle with electron positions
+    for (let shellRadius in shells) {
+      const shellOrbitals = shells[shellRadius];
+      const radius = parseInt(shellRadius);
+      
       ctx.save();
+      
+      // Draw the shell orbital path (faint circle)
+      ctx.strokeStyle = "rgba(100, 150, 255, 0.2)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(CX, CY, radius, 0, this.TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Draw electrons on this shell
+      for (let orbital of shellOrbitals) {
+        ctx.save();
+        
+        let c = colors[orbital.type] || colors.grey;
+        let occ = orbital.occupied;
+        let stunned = orbital.stunned;
 
-      let blue = orbital.type === "blue";
-      let occ = orbital.occupied;
-      let stunned = orbital.stunned;
-      let c = colors[orbital.type] || colors.grey;
+        if (occ) {
+          // Occupied position - show electron
+          ctx.shadowColor = c[0] + "0.8)";
+          ctx.shadowBlur = 15;
 
-      if (occ) {
-        // Occupied orbital - show as filled circle with glow
-        ctx.shadowColor = c[0] + "0.8)";
-        ctx.shadowBlur = 20;
+          // Apply shake offset for occupied orbitals
+          let drawX = orbital.x + orbital.shakeOffsetX;
+          let drawY = orbital.y + orbital.shakeOffsetY;
 
-        // Apply shake offset for occupied orbitals
-        let drawX = orbital.x + orbital.shakeOffsetX;
-        let drawY = orbital.y + orbital.shakeOffsetY;
+          let grad = ctx.createRadialGradient(
+            drawX, drawY, 0, drawX, drawY, 8
+          );
+          grad.addColorStop(0, c[1]);
+          grad.addColorStop(1, c[2]);
 
-        let grad = ctx.createRadialGradient(
-          drawX,
-          drawY,
-          0,
-          drawX,
-          drawY,
-          orbital.radius
-        );
-        grad.addColorStop(0, c[0] + "0.9)");
-        grad.addColorStop(1, c[0] + "0.2)");
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
-        ctx.fill();
-
-        ctx.strokeStyle = c[1];
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
-        ctx.stroke();
-      } else {
-        // Unoccupied rotating orbital with gap
-        ctx.translate(orbital.x, orbital.y);
-        ctx.rotate(orbital.angle);
-
-        // Main arc with gap
-        ctx.strokeStyle = stunned ? colors.grey : c[2];
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(
-          0,
-          0,
-          orbital.radius,
-          orbital.gap / 2,
-          this.TAU - orbital.gap / 2
-        );
-        ctx.stroke();
-
-        // Gap indicators
-        ctx.strokeStyle = stunned ? "rgba(128,128,128,0.6)" : c[0] + "0.6)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        let r1 = orbital.radius,
-          r2 = r1 + 8,
-          g = orbital.gap / 2;
-        const M = Math; // Shorter reference for size optimization
-        ctx.moveTo(r1 * M.cos(g), r1 * M.sin(g));
-        ctx.lineTo(r2 * M.cos(g), r2 * M.sin(g));
-        ctx.moveTo(r1 * M.cos(-g), r1 * M.sin(-g));
-        ctx.lineTo(r2 * M.cos(-g), r2 * M.sin(-g));
-        ctx.stroke();
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(drawX, drawY, 8, 0, this.TAU);
+          ctx.fill();
+        } else {
+          // Available electron position with rotating gap
+          const angle = orbital.angle || 0;
+          const gapSize = orbital.gap;
+          
+          // Draw the available orbital spot as an arc with gap
+          ctx.translate(CX, CY);
+          ctx.rotate(angle);
+          
+          // Calculate the position on the shell for this orbital
+          const orbitalAngle = Math.atan2(orbital.y - CY, orbital.x - CX);
+          ctx.rotate(orbitalAngle);
+          
+          ctx.strokeStyle = stunned ? colors.grey : c[2];
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          
+          // Draw arc representing the available electron position
+          ctx.arc(0, 0, radius, -gapSize/2, gapSize/2);
+          ctx.stroke();
+          
+          // Draw gap indicators
+          ctx.strokeStyle = stunned ? "rgba(128,128,128,0.6)" : c[0] + "0.6)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          let r1 = radius - 5, r2 = radius + 5;
+          ctx.moveTo(r1 * Math.cos(gapSize/2), r1 * Math.sin(gapSize/2));
+          ctx.lineTo(r2 * Math.cos(gapSize/2), r2 * Math.sin(gapSize/2));
+          ctx.moveTo(r1 * Math.cos(-gapSize/2), r1 * Math.sin(-gapSize/2));
+          ctx.lineTo(r2 * Math.cos(-gapSize/2), r2 * Math.sin(-gapSize/2));
+          ctx.stroke();
+        }
+        
+        ctx.restore();
       }
-
+      
       ctx.restore();
     }
 
     // UI Constants
     const F16 = "16px Arial",
-      F18 = "18px 'Courier New', monospace";
+      F18 = "18px 'Courier New', monospace",
+      F12 = "12px Arial";
     const WHITE = "white",
-      CYAN = "rgb(0, 255, 255)";
+      CYAN = "rgb(0, 255, 255)",
+      YELLOW = "rgb(255, 255, 100)";
 
-    // UI
+    const currentLevel = this.levels[this.currentLevel];
+
+    // Element name and atomic number
     ctx.fillStyle = WHITE;
-    ctx.font = F16;
-    ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
+    ctx.font = F18;
+    ctx.fillText(`${currentLevel.name}`, 20, 30);
+
+    // Atomic number in a styled box
+    ctx.save();
+    ctx.fillStyle = "rgba(100, 150, 255, 0.2)";
+    ctx.fillRect(200, 10, 40, 30);
+    ctx.strokeStyle = "rgb(100, 150, 255)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(200, 10, 40, 30);
+
+    ctx.fillStyle = CYAN;
+    ctx.font = "14px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(currentLevel.atomicNumber.toString(), 220, 30);
+    ctx.textAlign = "left";
+    ctx.restore();
 
     // Enhanced score text with glow effect
     ctx.save();
@@ -581,6 +690,11 @@ class OrbitalSystem {
 
     ctx.restore();
 
+    // Electron configuration description
+    ctx.fillStyle = YELLOW;
+    ctx.font = F12;
+    ctx.fillText(currentLevel.description, 20, 75);
+
     ctx.fillStyle = WHITE;
     ctx.font = F16;
     ctx.fillText(
@@ -588,13 +702,13 @@ class OrbitalSystem {
         this.orbitals.length
       }`,
       20,
-      80
+      95
     );
 
     // Timer display
     let timeLeft = Math.max(0, this.levelTime - this.time);
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 100);
+    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 115);
 
     if (this.checkCompletion()) {
       ctx.save();
@@ -699,7 +813,7 @@ class Game {
         vy: (Math.random() - 0.5) * 0.3,
         alpha: Math.random() * 0.4 + 0.1,
         phase: Math.random() * Math.PI * 2,
-        size: Math.random() * 1.5 + 0.5
+        size: Math.random() * 1.5 + 0.5,
       });
     }
   }
@@ -712,7 +826,7 @@ class Game {
       p.x += p.vx;
       p.y += p.vy;
       p.phase += 0.02;
-      
+
       // Wrap around edges
       if (p.x < 0) p.x = this.canvas.width;
       if (p.x > this.canvas.width) p.x = 0;

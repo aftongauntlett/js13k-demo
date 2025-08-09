@@ -11,50 +11,111 @@ class OrbitalSystem {
     // Orbital factory for consistent properties and smaller code
     const G3 = Math.PI / 3,
       G4 = Math.PI / 4,
+      G5 = Math.PI / 5,
       G6 = Math.PI / 6;
-    const o = (x, y, type, speed = 0.025, gap = G4) => ({
-      x,
-      y,
+
+    // Center coordinates for atomic structure
+    const CX = this.canvas.width / 2;
+    const CY = this.canvas.height / 2;
+
+    // Shell factory: (shell, position_angle, type, gap_size, rotation_speed)
+    const shell = (radius, angle, type, gap = G4, speed = 0.02) => ({
+      x: CX + Math.cos(angle) * radius,
+      y: CY + Math.sin(angle) * radius,
       type,
       speed,
       gap,
-      radius: 25,
+      radius: 20,
       rotate: true,
+      shell: radius, // Track which shell this belongs to
     });
 
+    // Real atomic structures based on Bohr model
     this.levels = [
       {
-        name: "Dipole",
+        name: "Hydrogen (H)",
+        element: "H",
+        atomicNumber: 1,
+        description: "1 electron in 1s orbital",
+        funFact:
+          "Hydrogen is the most abundant element in the universe, making up ~75% of all matter!",
+        shells: [60], // K shell only
         orbitals: [
-          o(350, 300, "blue", 0.02, G3),
-          o(450, 300, "orange", 0.018, G3),
-          o(300, 250, "blue", 0.025, G3),
-          o(500, 350, "orange", 0.022, G3),
+          shell(60, 0, "blue", G3, 0.025), // 1s¹
         ],
       },
       {
-        name: "Triangle",
+        name: "Helium (He)",
+        element: "He",
+        atomicNumber: 2,
+        description: "2 electrons fill the first shell",
+        funFact:
+          "Helium is so light it escapes Earth's gravity! That's why helium balloons float.",
+        shells: [60], // K shell only
         orbitals: [
-          o(400, 250, "blue", 0.03),
-          o(350, 350, "orange", 0.026),
-          o(450, 350, "blue", 0.025),
-          o(300, 300, "orange", 0.024),
-          o(500, 300, "blue", 0.02),
+          shell(60, 0, "blue", G4, 0.022), // 1s¹
+          shell(60, Math.PI, "blue", G4, 0.022), // 1s²
         ],
       },
       {
-        name: "Square",
+        name: "Lithium (Li)",
+        element: "Li",
+        atomicNumber: 3,
+        description: "2 electrons in 1s, 1 electron in 2s",
+        funFact:
+          "Lithium powers your phone! It's the key element in rechargeable batteries.",
+        shells: [50, 110], // K and L shells
         orbitals: [
-          o(350, 250, "blue", 0.04, G6),
-          o(450, 250, "orange", 0.032, G6),
-          o(350, 350, "orange", 0.028, G6),
-          o(450, 350, "blue", 0.035, G6),
-          o(300, 300, "blue", 0.03, G6),
-          o(500, 300, "orange", 0.025, G6),
+          // First shell (K - 1s² - complete)
+          shell(50, 0, "blue", G6, 0.018),
+          shell(50, Math.PI, "blue", G6, 0.018),
+          // Second shell (L - 2s¹)
+          shell(110, 0, "orange", G3, 0.025),
+        ],
+      },
+      {
+        name: "Carbon (C)",
+        element: "C",
+        atomicNumber: 6,
+        description: "1s² 2s² 2p²",
+        funFact:
+          "Carbon is the backbone of all life! Every living thing contains carbon compounds.",
+        shells: [45, 105], // K and L shells
+        orbitals: [
+          // First shell (K - 1s² - complete, smaller, faster)
+          shell(45, 0, "blue", G6, 0.015),
+          shell(45, Math.PI, "blue", G6, 0.015),
+          // Second shell (L - 2s² 2p²) - distributed around the shell
+          shell(105, 0, "orange", G4, 0.02), // 2s¹
+          shell(105, Math.PI, "orange", G4, 0.02), // 2s²
+          shell(105, Math.PI / 2, "orange", G4, 0.022), // 2p¹
+          shell(105, (3 * Math.PI) / 2, "orange", G4, 0.022), // 2p²
+        ],
+      },
+      {
+        name: "Nitrogen (N)",
+        element: "N",
+        atomicNumber: 7,
+        description: "1s² 2s² 2p³",
+        funFact:
+          "Nitrogen makes up 78% of Earth's atmosphere! It's essential for protein synthesis.",
+        shells: [40, 100], // K and L shells
+        orbitals: [
+          // First shell (K - 1s²)
+          shell(40, 0, "blue", G6, 0.012),
+          shell(40, Math.PI, "blue", G6, 0.012),
+          // Second shell (L - 2s² 2p³) - distributed around the shell
+          shell(100, 0, "orange", G4, 0.018),
+          shell(100, Math.PI, "orange", G4, 0.018),
+          shell(100, Math.PI / 2, "orange", G5, 0.02),
+          shell(100, (3 * Math.PI) / 2, "orange", G5, 0.02),
+          shell(100, Math.PI / 4, "orange", G5, 0.022),
         ],
       },
     ];
 
+    this.showingTip = false;
+    this.tipStartTime = 0;
     this.resetLevel();
   }
 
@@ -69,6 +130,7 @@ class OrbitalSystem {
       speed: o.speed,
       gap: o.gap,
       angle: 0,
+      electronAngle: 0, // Angle for electron orbiting around the orbital edge
       stunned: false,
       stunnedTime: 0,
       hitCount: 0,
@@ -88,10 +150,20 @@ class OrbitalSystem {
     const M = Math; // Shorter reference
     this.time += 1 / 60; // Assuming 60fps
 
+    // Auto-hide educational tip after 4 seconds
+    if (this.showingTip && this.time - this.tipStartTime > 4) {
+      this.showingTip = false;
+    }
+
     // Update rotating orbitals
     for (let orbital of this.orbitals) {
       if (orbital.rotate) {
         orbital.angle += orbital.speed;
+      }
+
+      // Update electron orbiting motion for occupied orbitals
+      if (orbital.occupied) {
+        orbital.electronAngle += orbital.speed * 3; // Electrons orbit faster than gap rotation
       }
 
       // Update stunned orbitals
@@ -160,6 +232,11 @@ class OrbitalSystem {
   nextLevel() {
     if (this.checkCompletion()) {
       this.score += (this.currentLevel + 1) * 100;
+
+      // Show educational tip
+      this.showingTip = true;
+      this.tipStartTime = this.time;
+
       this.currentLevel++;
       if (this.currentLevel >= this.levels.length) {
         this.currentLevel = 0; // Loop back
@@ -170,6 +247,11 @@ class OrbitalSystem {
     return false;
   }
 
+  // Close educational tip
+  closeTip() {
+    this.showingTip = false;
+  }
+
   draw(ctx) {
     // Color helpers for smaller code
     const colors = {
@@ -178,119 +260,239 @@ class OrbitalSystem {
       grey: "rgb(128,128,128)",
     };
 
-    // Draw orbitals
+    const level = this.levels[this.currentLevel];
+    const CX = this.canvas.width / 2;
+    const CY = this.canvas.height / 2;
+
+    // Draw nucleus at center
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 255, 100, 0.8)";
+    ctx.shadowBlur = 15;
+
+    let nucleusGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 15);
+    nucleusGrad.addColorStop(0, "rgb(255, 255, 150)");
+    nucleusGrad.addColorStop(0.7, "rgb(255, 200, 100)");
+    nucleusGrad.addColorStop(1, "rgb(200, 150, 50)");
+
+    ctx.fillStyle = nucleusGrad;
+    ctx.beginPath();
+    ctx.arc(CX, CY, 12, 0, this.TAU);
+    ctx.fill();
+
+    // Nucleus label
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgb(50, 50, 50)";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(level.element, CX, CY + 3);
+    ctx.textAlign = "left";
+    ctx.restore();
+
+    // Draw electron shells as concentric circles around nucleus
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+
+    // Draw visible shell rings for the current element
+    const levelData = this.levels[this.currentLevel];
+    if (levelData.shells) {
+      for (let shellRadius of levelData.shells) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(100, 150, 255, 0.25)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, shellRadius, 0, this.TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
+
+    // Draw orbital targets on each shell
     for (let orbital of this.orbitals) {
       ctx.save();
 
-      let blue = orbital.type === "blue";
+      let c = colors[orbital.type] || colors.grey;
       let occ = orbital.occupied;
       let stunned = orbital.stunned;
-      let c = colors[orbital.type] || colors.grey;
+
+      // Draw orbital boundary (always visible as outline)
+      const orbitalRadius = 20; // Larger, more visible orbital size
+
+      // Orbital outline ring - colored based on orbital type
+      if (occ) {
+        // Occupied orbitals keep the faint colored outline
+        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.4)" : c[0] + "0.4)";
+      } else {
+        // Empty orbitals have a more visible colored outline to show which electron type is needed
+        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.6)" : c[0] + "0.7)";
+      }
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
+      ctx.stroke();
+
+      // Subtle orbital field background
+      let fieldGrad = ctx.createRadialGradient(
+        orbital.x,
+        orbital.y,
+        0,
+        orbital.x,
+        orbital.y,
+        orbitalRadius
+      );
+      fieldGrad.addColorStop(
+        0,
+        stunned ? "rgba(100,100,100,0.05)" : c[0] + "0.05)"
+      );
+      fieldGrad.addColorStop(1, "rgba(0,0,0,0)");
+
+      ctx.fillStyle = fieldGrad;
+      ctx.beginPath();
+      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
+      ctx.fill();
 
       if (occ) {
-        // Occupied orbital - show as filled circle with glow
-        ctx.shadowColor = c[0] + "0.8)";
-        ctx.shadowBlur = 20;
+        // Occupied orbital - electron orbiting around the edge
+        const electronOrbitRadius = orbitalRadius - 2; // Slightly inside the orbital boundary
 
-        // Apply shake offset for occupied orbitals
-        let drawX = orbital.x + orbital.shakeOffsetX;
-        let drawY = orbital.y + orbital.shakeOffsetY;
+        // Calculate electron position
+        let electronX =
+          orbital.x + Math.cos(orbital.electronAngle) * electronOrbitRadius;
+        let electronY =
+          orbital.y + Math.sin(orbital.electronAngle) * electronOrbitRadius;
+
+        // Apply shake offset to the entire orbital system
+        electronX += orbital.shakeOffsetX;
+        electronY += orbital.shakeOffsetY;
+
+        // Draw orbiting electron
+        ctx.shadowColor = c[0] + "0.8)";
+        ctx.shadowBlur = 8;
 
         let grad = ctx.createRadialGradient(
-          drawX,
-          drawY,
+          electronX,
+          electronY,
           0,
-          drawX,
-          drawY,
-          orbital.radius
+          electronX,
+          electronY,
+          6
         );
-        grad.addColorStop(0, c[0] + "0.9)");
-        grad.addColorStop(1, c[0] + "0.2)");
+        grad.addColorStop(0, "white");
+        grad.addColorStop(0.4, c[1]);
+        grad.addColorStop(1, c[2]);
 
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
+        ctx.arc(electronX, electronY, 6, 0, this.TAU);
         ctx.fill();
 
-        ctx.strokeStyle = c[1];
-        ctx.lineWidth = 2;
+        // Optional: Draw faint orbital trail
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = c[0] + "0.2)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
         ctx.beginPath();
-        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
+        ctx.arc(orbital.x, orbital.y, electronOrbitRadius, 0, this.TAU);
         ctx.stroke();
+        ctx.setLineDash([]);
       } else {
-        // Unoccupied rotating orbital with gap
+        // Available orbital - show rotating entry gap
         ctx.translate(orbital.x, orbital.y);
         ctx.rotate(orbital.angle);
 
-        // Main arc with gap
-        ctx.strokeStyle = stunned ? colors.grey : c[2];
+        // Entry gap in the orbital ring
+        ctx.strokeStyle = stunned
+          ? "rgba(200,200,200,0.8)"
+          : c[1].replace("rgb", "rgba").replace(")", ",0.9)");
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(
-          0,
-          0,
-          orbital.radius,
-          orbital.gap / 2,
-          this.TAU - orbital.gap / 2
+        let g = orbital.gap / 2;
+        ctx.arc(0, 0, orbitalRadius, g, this.TAU - g);
+        ctx.stroke();
+
+        // Entry gap indicators (pointing inward)
+        ctx.strokeStyle = stunned
+          ? "rgba(160,160,160,0.9)"
+          : c[1].replace("rgb", "rgba").replace(")", ",0.8)");
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(orbitalRadius * Math.cos(g), orbitalRadius * Math.sin(g));
+        ctx.lineTo(
+          (orbitalRadius - 6) * Math.cos(g),
+          (orbitalRadius - 6) * Math.sin(g)
+        );
+        ctx.moveTo(orbitalRadius * Math.cos(-g), orbitalRadius * Math.sin(-g));
+        ctx.lineTo(
+          (orbitalRadius - 6) * Math.cos(-g),
+          (orbitalRadius - 6) * Math.sin(-g)
         );
         ctx.stroke();
 
-        // Gap indicators
-        ctx.strokeStyle = stunned ? "rgba(128,128,128,0.6)" : c[0] + "0.6)";
-        ctx.lineWidth = 2;
+        // Center indicator dot
+        let pulse = 0.3 + 0.3 * Math.sin(this.time * 2.5);
+        ctx.fillStyle = stunned
+          ? `rgba(140,140,140,${pulse})`
+          : c[0] + `${pulse})`;
         ctx.beginPath();
-        let r1 = orbital.radius,
-          r2 = r1 + 8,
-          g = orbital.gap / 2;
-        const M = Math; // Shorter reference for size optimization
-        ctx.moveTo(r1 * M.cos(g), r1 * M.sin(g));
-        ctx.lineTo(r2 * M.cos(g), r2 * M.sin(g));
-        ctx.moveTo(r1 * M.cos(-g), r1 * M.sin(-g));
-        ctx.lineTo(r2 * M.cos(-g), r2 * M.sin(-g));
-        ctx.stroke();
+        ctx.arc(0, 0, 3, 0, this.TAU);
+        ctx.fill();
       }
 
       ctx.restore();
     }
 
     // UI Constants
-    const F16 = "16px Arial",
-      F18 = "18px 'Courier New', monospace";
-    const WHITE = "white",
-      CYAN = "rgb(0, 255, 255)";
+    const F16 = "16px Arial";
+    const F18 = "18px 'Courier New', monospace";
+    const F12 = "12px Arial";
+    const WHITE = "white";
+    const CYAN = "rgb(0, 255, 255)";
+    const YELLOW = "rgb(255, 255, 100)";
 
-    // UI
+    const currentLevel = this.levels[this.currentLevel];
+
+    // Element name and atomic number
     ctx.fillStyle = WHITE;
-    ctx.font = F16;
-    ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
-
-    // Enhanced score text with glow effect
-    ctx.save();
     ctx.font = F18;
-    ctx.textAlign = "left";
+    ctx.fillText(`${currentLevel.name}`, 20, 30);
 
-    // Glow effect for score
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 8;
+    // Atomic number in a styled box
+    ctx.save();
+    ctx.fillStyle = "rgba(100, 150, 255, 0.2)";
+    ctx.fillRect(200, 10, 40, 30);
+    ctx.strokeStyle = "rgb(100, 150, 255)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(200, 10, 40, 30);
+
     ctx.fillStyle = CYAN;
-    ctx.fillText(`SCORE: ${this.score}`, 20, 55);
-
+    ctx.font = "14px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(currentLevel.atomicNumber.toString(), 220, 30);
+    ctx.textAlign = "left";
     ctx.restore();
 
+    // Score text with muted styling like element name
     ctx.fillStyle = WHITE;
-    ctx.font = F16;
+    ctx.font = F18;
+    ctx.fillText(`SCORE: ${this.score}`, 20, 55);
+
+    ctx.fillStyle = WHITE;
+    ctx.font = F18;
     ctx.fillText(
       `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
         this.orbitals.length
       }`,
       20,
-      80
+      75
     );
 
     // Timer display
     let timeLeft = Math.max(0, this.levelTime - this.time);
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 100);
+    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 95);
 
     if (this.checkCompletion()) {
       ctx.save();
@@ -327,6 +529,95 @@ class OrbitalSystem {
       ctx.shadowBlur = 15;
       ctx.fillStyle = "rgb(255, 100, 100)";
       ctx.fillText("TIME'S UP! CLICK TO RETRY", this.canvas.width / 2, 150);
+      ctx.restore();
+    }
+
+    // Educational tip overlay
+    if (this.showingTip) {
+      const prevLevel =
+        this.currentLevel === 0
+          ? this.levels.length - 1
+          : this.currentLevel - 1;
+      const completedLevel = this.levels[prevLevel];
+
+      // Semi-transparent overlay
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // Educational tip box
+      const boxWidth = 500;
+      const boxHeight = 200;
+      const boxX = (this.canvas.width - boxWidth) / 2;
+      const boxY = (this.canvas.height - boxHeight) / 2;
+
+      // Tip box background
+      ctx.fillStyle = "rgba(20, 30, 50, 0.95)";
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+      // Tip box border
+      ctx.strokeStyle = "rgb(100, 150, 255)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+      ctx.textAlign = "center";
+
+      // Congratulations header
+      ctx.fillStyle = "rgb(255, 255, 100)";
+      ctx.font = "24px 'Courier New', monospace";
+      ctx.fillText("🎉 ELEMENT BUILT! 🎉", this.canvas.width / 2, boxY + 40);
+
+      // Element details
+      ctx.fillStyle = "rgb(100, 200, 255)";
+      ctx.font = "20px 'Courier New', monospace";
+      ctx.fillText(
+        `${completedLevel.name} (${completedLevel.element})`,
+        this.canvas.width / 2,
+        boxY + 70
+      );
+
+      ctx.fillStyle = "rgb(200, 200, 200)";
+      ctx.font = "16px Arial";
+      ctx.fillText(
+        `Atomic Number: ${completedLevel.atomicNumber}`,
+        this.canvas.width / 2,
+        boxY + 95
+      );
+
+      // Fun fact
+      ctx.fillStyle = "rgb(255, 200, 100)";
+      ctx.font = "14px Arial";
+
+      // Word wrap the fun fact
+      const words = completedLevel.funFact.split(" ");
+      let line = "";
+      let lineY = boxY + 125;
+
+      for (let word of words) {
+        const testLine = line + word + " ";
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > boxWidth - 40 && line !== "") {
+          ctx.fillText(line, this.canvas.width / 2, lineY);
+          line = word + " ";
+          lineY += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, this.canvas.width / 2, lineY);
+
+      // Auto-close instruction
+      ctx.fillStyle = "rgba(150, 150, 150, 0.8)";
+      ctx.font = "12px Arial";
+      ctx.fillText(
+        "(Auto-closes in " +
+          Math.ceil(4 - (this.time - this.tipStartTime)) +
+          "s | Click anywhere or press ESC to close)",
+        this.canvas.width / 2,
+        boxY + boxHeight - 15
+      );
+
       ctx.restore();
     }
   }

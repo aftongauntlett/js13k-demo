@@ -16,8 +16,14 @@ class Game {
     this.particles = [];
     this.spawnParticles();
 
-    // Click handler for level progression/restart
+    // Click handler for level progression/restart and tip closing
     this.canvas.addEventListener("click", () => {
+      // Check if educational tip is showing
+      if (this.orbitals.showingTip) {
+        this.orbitals.closeTip();
+        return;
+      }
+
       let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
       if (this.orbitals.checkCompletion()) {
         this.orbitals.nextLevel();
@@ -25,6 +31,13 @@ class Game {
       } else if (timeLeft <= 0) {
         this.orbitals.resetLevel();
         this.spawnElectrons();
+      }
+    });
+
+    // Keyboard handler for closing tips with Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.orbitals.showingTip) {
+        this.orbitals.closeTip();
       }
     });
 
@@ -106,20 +119,25 @@ class Game {
     }
     this.ctx.restore();
 
-    // Draw cursor glow
-    this.ctx.save();
-    this.ctx.shadowColor = "rgba(100,150,255,0.6)";
-    this.ctx.shadowBlur = 20;
-    this.ctx.fillStyle = "rgba(100,150,255,0.2)";
-    this.ctx.beginPath();
-    this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.restore();
+    // Draw cursor glow (only when tip is not showing)
+    if (!this.orbitals.showingTip) {
+      this.ctx.save();
+      this.ctx.shadowColor = "rgba(100,150,255,0.6)";
+      this.ctx.shadowBlur = 20;
+      this.ctx.fillStyle = "rgba(100,150,255,0.2)";
+      this.ctx.beginPath();
+      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    }
 
     this.orbitals.draw(this.ctx);
 
-    for (let electron of this.electrons) {
-      electron.draw(this.ctx);
+    // Draw electrons (only when tip is not showing)
+    if (!this.orbitals.showingTip) {
+      for (let electron of this.electrons) {
+        electron.draw(this.ctx);
+      }
     }
 
     this.ctx.fillStyle = "rgba(255,255,255,0.7)";
