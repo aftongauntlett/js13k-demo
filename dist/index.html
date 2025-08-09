@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quantum Chaos - js13k Game</title>
+    <title>Atomic Puzzle Game - js13k Demo</title>
     <style>
       body {
         margin: 0;
@@ -19,7 +19,7 @@
 
       canvas {
         border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
-        cursor: crosshair;
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="rgba(100,150,255,0.8)" stroke-width="2"/><circle cx="16" cy="16" r="6" fill="none" stroke="rgba(100,150,255,0.6)" stroke-width="1"/><circle cx="16" cy="16" r="2" fill="rgba(100,150,255,0.9)"/><line x1="4" y1="16" x2="12" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="20" y1="16" x2="28" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="4" x2="16" y2="12" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="20" x2="16" y2="28" stroke="rgba(100,150,255,0.7)" stroke-width="1"/></svg>') 16 16, crosshair;
       }
 
       #info {
@@ -36,7 +36,7 @@
   <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="info">
-      Quantum Chaos - Guide electrons to stable orbital configurations
+      Atomic Puzzle Game - Guide electrons to matching colored orbitals
     </div>
 
     <script>
@@ -47,20 +47,90 @@ class Electron {
     this.y = y;
     this.vx = (Math.random() - 0.5) * 2;
     this.vy = (Math.random() - 0.5) * 2;
-    this.type = type; // 'blue' or 'orange'
+    this.type = type; // 'blue', 'orange', or 'grey'
+    this.originalType = type; // Store original type for recovery
     this.radius = 8;
     this.captured = false;
     this.mouseInfluenced = false;
+    this.inactive = false; // True when electron becomes grey/inactive
+    this.inactiveTime = 0; // Time remaining inactive
+    this.TAU = Math.PI * 2; // 2π constant for efficiency
+  }
+
+  // Handle boundary collisions for all scenarios
+  handleBoundaries(canvasWidth, canvasHeight) {
+    // UI collision boundaries - invisible walls around text areas
+    // Top-left UI area (level, score, timer)
+    if (this.x < 220 && this.y < 120) {
+      if (this.x < 220 && this.y > 110) {
+        // Bottom edge of UI area
+        this.y = 120;
+        this.vy = Math.abs(this.vy);
+      } else if (this.x > 210 && this.y < 120) {
+        // Right edge of UI area
+        this.x = 220;
+        this.vx = Math.abs(this.vx);
+      }
+    }
+
+    // Bottom instruction text area
+    if (this.y > canvasHeight - 50) {
+      this.y = canvasHeight - 50;
+      this.vy = -Math.abs(this.vy);
+    }
+
+    // Canvas boundaries
+    if (this.x < this.radius) {
+      this.x = this.radius;
+      this.vx = Math.abs(this.vx);
+    }
+    if (this.x > canvasWidth - this.radius) {
+      this.x = canvasWidth - this.radius;
+      this.vx = -Math.abs(this.vx);
+    }
+    if (this.y < this.radius) {
+      this.y = this.radius;
+      this.vy = Math.abs(this.vy);
+    }
+    if (this.y > canvasHeight - this.radius) {
+      this.y = canvasHeight - this.radius;
+      this.vy = -Math.abs(this.vy);
+    }
   }
 
   update(mouseX, mouseY, orbitals, orbitalSystem) {
     if (this.captured) return;
 
+    const M = Math; // Shorter reference for size optimization
+
+    // Handle inactive electron recovery
+    if (this.inactive) {
+      this.inactiveTime -= 1 / 60; // Decrease by 1/60th second (assuming 60fps)
+      if (this.inactiveTime <= 0) {
+        // Reactivate electron
+        this.inactive = false;
+        this.type = this.originalType;
+      } else {
+        // Still inactive, just update physics but no mouse interaction
+        this.vx *= 0.98;
+        this.vy *= 0.98;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Use shared boundary handling
+        this.handleBoundaries(
+          orbitalSystem.canvas.width,
+          orbitalSystem.canvas.height
+        );
+        return;
+      }
+    }
+
     let dx = this.x - mouseX,
       dy = this.y - mouseY;
-    let distance = Math.sqrt(dx * dx + dy * dy);
+    let distance = M.sqrt(dx * dx + dy * dy);
 
-    // Track if mouse is close enough to influence electron
+    // Track if mouse is close enough to influence electron (only if not inactive)
     this.mouseInfluenced = distance < 150;
 
     if (distance > 0 && this.mouseInfluenced) {
@@ -74,50 +144,90 @@ class Electron {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Boundaries
-    if (this.x < this.radius) {
-      this.x = this.radius;
-      this.vx = Math.abs(this.vx);
-    }
-    if (this.x > 800 - this.radius) {
-      this.x = 800 - this.radius;
-      this.vx = -Math.abs(this.vx);
-    }
-    if (this.y < this.radius) {
-      this.y = this.radius;
-      this.vy = Math.abs(this.vy);
-    }
-    if (this.y > 600 - this.radius) {
-      this.y = 600 - this.radius;
-      this.vy = -Math.abs(this.vy);
-    }
+    // Get canvas bounds from orbital system
+    let canvasWidth = orbitalSystem.canvas.width;
+    let canvasHeight = orbitalSystem.canvas.height;
+
+    // Handle all boundary collisions
+    this.handleBoundaries(canvasWidth, canvasHeight);
 
     // Orbital interactions
     for (let orbital of orbitals) {
-      if (orbital.type === this.type) {
-        let odx = this.x - orbital.x,
-          ody = this.y - orbital.y;
-        let odist = Math.sqrt(odx * odx + ody * ody);
+      let odx = this.x - orbital.x,
+        ody = this.y - orbital.y;
+      let odist = M.sqrt(odx * odx + ody * ody);
 
-        if (odist < orbital.radius + this.radius) {
-          if (
-            !orbital.occupied &&
-            this.mouseInfluenced &&
-            orbitalSystem.canEnterOrbital(orbital, this.x, this.y)
-          ) {
-            orbital.occupied = true;
-            this.captured = true;
-            this.x = orbital.x;
-            this.y = orbital.y;
-            break;
-          } else if (orbital.rotate && !orbital.occupied) {
-            let bounceX = odx / odist,
-              bounceY = ody / odist;
-            this.vx = bounceX * 3;
-            this.vy = bounceY * 3;
-            this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
-            this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
+      if (odist < orbital.radius + this.radius) {
+        if (orbital.occupied && !this.inactive) {
+          // Hit an occupied orbital - trigger shake/knockout
+          let electronKnockedOut = orbitalSystem.hitOccupiedOrbital(orbital);
+
+          if (electronKnockedOut) {
+            // Create a new electron to replace the knocked-out one
+            // Spawn it near the orbital but with some random velocity
+            let newElectron = new Electron(
+              orbital.x + (M.random() - 0.5) * 100,
+              orbital.y + (M.random() - 0.5) * 100,
+              orbital.type
+            );
+            // Add some initial velocity to the new electron
+            newElectron.vx = (M.random() - 0.5) * 4;
+            newElectron.vy = (M.random() - 0.5) * 4;
+
+            // Add the new electron to the game
+            // We need access to the electrons array from the game instance
+            // For now, we'll store it in a way the game can pick it up
+            if (window.game) {
+              window.game.electrons.push(newElectron);
+            }
           }
+
+          // Bounce away from orbital
+          let bounceX = odx / odist,
+            bounceY = ody / odist;
+          this.vx = bounceX * 3;
+          this.vy = bounceY * 3;
+          this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
+          this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
+        } else if (orbital.type === this.type) {
+          // Correct color orbital
+          if (!orbital.occupied) {
+            // Check if electron can enter this orbital (considers rotation gaps)
+            if (
+              this.mouseInfluenced &&
+              orbitalSystem.canEnterOrbital(orbital, this.x, this.y)
+            ) {
+              // Electron can enter - capture it
+              orbital.occupied = true;
+              this.captured = true;
+              this.x = orbital.x;
+              this.y = orbital.y;
+              break;
+            } else if (orbital.rotate) {
+              // Rotating orbital but electron can't enter through gap - bounce
+              let bounceX = odx / odist,
+                bounceY = ody / odist;
+              this.vx = bounceX * 3;
+              this.vy = bounceY * 3;
+              this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
+              this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
+            }
+          }
+        } else if (!orbital.occupied && !this.inactive) {
+          // Wrong color orbital - make electron inactive and stun orbital
+          this.inactive = true;
+          this.type = "grey";
+          this.mouseInfluenced = false;
+          this.inactiveTime = 5; // Inactive for 5 seconds
+          orbitalSystem.stunOrbital(orbital);
+
+          // Bounce away from orbital
+          let bounceX = odx / odist,
+            bounceY = ody / odist;
+          this.vx = bounceX * 3;
+          this.vy = bounceY * 3;
+          this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
+          this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
         }
       }
     }
@@ -126,14 +236,23 @@ class Electron {
   draw(ctx) {
     if (this.captured) return;
 
+    const M = Math; // Shorter reference for size optimization
     ctx.save();
-    
-    // Add subtle glow when mouse-influenced
-    if (this.mouseInfluenced) {
-      ctx.shadowColor = this.type === "blue" ? "rgba(100,150,255,0.8)" : "rgba(255,150,100,0.8)";
+
+    // Color map for electrons
+    const colors = {
+      blue: ["rgba(100,150,255,0.8)", "rgb(150,200,255)", "rgb(100,150,255)"],
+      orange: ["rgba(255,150,100,0.8)", "rgb(255,200,150)", "rgb(255,150,100)"],
+    };
+
+    // Add subtle glow when mouse-influenced (but not if inactive)
+    if (this.mouseInfluenced && !this.inactive) {
+      ctx.shadowColor = colors[this.type]
+        ? colors[this.type][0]
+        : "rgba(128,128,128,0.8)";
       ctx.shadowBlur = 15;
     }
-    
+
     let grad = ctx.createRadialGradient(
       this.x,
       this.y,
@@ -143,35 +262,39 @@ class Electron {
       this.radius
     );
 
-    if (this.type === "blue") {
-      grad.addColorStop(0, "rgb(150,200,255)");
-      grad.addColorStop(1, "rgb(100,150,255)");
+    if (colors[this.type]) {
+      let c = colors[this.type];
+      grad.addColorStop(0, c[1]);
+      grad.addColorStop(1, c[2]);
     } else {
-      grad.addColorStop(0, "rgb(255,200,150)");
-      grad.addColorStop(1, "rgb(255,150,100)");
+      // Grey/inactive electron with recovery indicator
+      if (this.inactive && this.inactiveTime > 0) {
+        // Add pulsing effect as it recovers
+        let pulse = 0.5 + 0.3 * M.sin(Date.now() * 0.01);
+        grad.addColorStop(0, `rgba(180,180,180,${pulse})`);
+        grad.addColorStop(1, `rgba(120,120,120,${pulse * 0.7})`);
+      } else {
+        grad.addColorStop(0, "rgb(180,180,180)");
+        grad.addColorStop(1, "rgb(120,120,120)");
+      }
     }
 
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius, 0, this.TAU);
     ctx.fill();
     ctx.restore();
   }
 }
 
 
-// Input handling system
+// Simple input handling for mouse position
 class InputSystem {
   constructor(canvas) {
-    this.canvas = canvas;
     this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
 
-    this.setupEventListeners();
-  }
-
-  setupEventListeners() {
-    this.canvas.addEventListener("mousemove", (e) => {
-      const rect = this.canvas.getBoundingClientRect();
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
       this.mouse.x = e.clientX - rect.left;
       this.mouse.y = e.clientY - rect.top;
     });
@@ -185,32 +308,53 @@ class OrbitalSystem {
     this.canvas = canvas;
     this.currentLevel = 0;
     this.score = 0;
+    this.TAU = Math.PI * 2; // 2π constant for efficiency
     this.time = 0;
-    this.levelTime = 30; // 30 seconds per level
+    this.levelTime = 45; // 45 seconds per level
+
+    // Orbital factory for consistent properties and smaller code
+    const G3 = Math.PI / 3,
+      G4 = Math.PI / 4,
+      G6 = Math.PI / 6;
+    const o = (x, y, type, speed = 0.025, gap = G4) => ({
+      x,
+      y,
+      type,
+      speed,
+      gap,
+      radius: 25,
+      rotate: true,
+    });
 
     this.levels = [
       {
         name: "Dipole",
         orbitals: [
-          { x: 350, y: 300, radius: 25, type: "blue", rotate: true, speed: 0.02, gap: Math.PI/3 },
-          { x: 450, y: 300, radius: 25, type: "orange" },
+          o(350, 300, "blue", 0.02, G3),
+          o(450, 300, "orange", 0.018, G3),
+          o(300, 250, "blue", 0.025, G3),
+          o(500, 350, "orange", 0.022, G3),
         ],
       },
       {
         name: "Triangle",
         orbitals: [
-          { x: 400, y: 250, radius: 25, type: "blue", rotate: true, speed: 0.03, gap: Math.PI/4 },
-          { x: 350, y: 350, radius: 25, type: "orange" },
-          { x: 450, y: 350, radius: 25, type: "blue" },
+          o(400, 250, "blue", 0.03),
+          o(350, 350, "orange", 0.026),
+          o(450, 350, "blue", 0.025),
+          o(300, 300, "orange", 0.024),
+          o(500, 300, "blue", 0.02),
         ],
       },
       {
         name: "Square",
         orbitals: [
-          { x: 350, y: 250, radius: 25, type: "blue", rotate: true, speed: 0.04, gap: Math.PI/6 },
-          { x: 450, y: 250, radius: 25, type: "orange" },
-          { x: 350, y: 350, radius: 25, type: "orange" },
-          { x: 450, y: 350, radius: 25, type: "blue", rotate: true, speed: 0.035, gap: Math.PI/5 },
+          o(350, 250, "blue", 0.04, G6),
+          o(450, 250, "orange", 0.032, G6),
+          o(350, 350, "orange", 0.028, G6),
+          o(450, 350, "blue", 0.035, G6),
+          o(300, 300, "blue", 0.03, G6),
+          o(500, 300, "orange", 0.025, G6),
         ],
       },
     ];
@@ -225,10 +369,17 @@ class OrbitalSystem {
       radius: o.radius,
       type: o.type,
       occupied: false,
-      rotate: o.rotate || false,
-      speed: o.speed || 0,
-      gap: o.gap || 0,
+      rotate: o.rotate,
+      speed: o.speed,
+      gap: o.gap,
       angle: 0,
+      stunned: false,
+      stunnedTime: 0,
+      hitCount: 0,
+      shaking: false,
+      shakeTime: 0,
+      shakeOffsetX: 0,
+      shakeOffsetY: 0,
     }));
     this.time = 0;
   }
@@ -238,6 +389,7 @@ class OrbitalSystem {
   }
 
   update() {
+    const M = Math; // Shorter reference
     this.time += 1 / 60; // Assuming 60fps
 
     // Update rotating orbitals
@@ -245,22 +397,68 @@ class OrbitalSystem {
       if (orbital.rotate) {
         orbital.angle += orbital.speed;
       }
+
+      // Update stunned orbitals
+      if (orbital.stunned) {
+        orbital.stunnedTime -= 1 / 60;
+        if (orbital.stunnedTime <= 0) {
+          orbital.stunned = false;
+        }
+      }
+
+      // Update shaking orbitals
+      if (orbital.shaking) {
+        orbital.shakeTime -= 1 / 60;
+        if (orbital.shakeTime <= 0) {
+          orbital.shaking = false;
+          orbital.shakeOffsetX = 0;
+          orbital.shakeOffsetY = 0;
+        } else {
+          // Generate random shake offset
+          let intensity = orbital.shakeTime * 8; // Fade out over time
+          orbital.shakeOffsetX = (M.random() - 0.5) * intensity;
+          orbital.shakeOffsetY = (M.random() - 0.5) * intensity;
+        }
+      }
     }
   }
 
-  // Check if electron can enter rotating orbital
+  // Check if electron can enter orbital gap
   canEnterOrbital(orbital, electronX, electronY) {
-    if (!orbital.rotate) return true;
+    if (orbital.stunned) return false; // Stunned orbitals can't accept electrons
 
     let dx = electronX - orbital.x,
       dy = electronY - orbital.y;
     let electronAngle = Math.atan2(dy, dx);
-    let relativeAngle =
-      (electronAngle - orbital.angle + Math.PI * 2) % (Math.PI * 2);
+    let relativeAngle = (electronAngle - orbital.angle + this.TAU) % this.TAU;
 
     return (
-      relativeAngle < orbital.gap || relativeAngle > Math.PI * 2 - orbital.gap
+      relativeAngle < orbital.gap || relativeAngle > this.TAU - orbital.gap
     );
+  }
+
+  // Stun an orbital when wrong-color electron hits it
+  stunOrbital(orbital) {
+    orbital.stunned = true;
+    orbital.stunnedTime = 3; // 3 seconds stun duration
+  }
+
+  // Handle hits on occupied orbitals
+  hitOccupiedOrbital(orbital) {
+    orbital.hitCount++;
+    orbital.shaking = true;
+    orbital.shakeTime = 0.5; // Shake for 0.5 seconds
+
+    if (orbital.hitCount >= 2) {
+      // Knock out the electron
+      orbital.occupied = false;
+      orbital.hitCount = 0;
+      orbital.shaking = false;
+      orbital.shakeOffsetX = 0;
+      orbital.shakeOffsetY = 0;
+      return true; // Electron was knocked out
+    }
+    return false; // Electron still in orbital
   }
 
   nextLevel() {
@@ -277,16 +475,59 @@ class OrbitalSystem {
   }
 
   draw(ctx) {
+    // Color helpers for smaller code
+    const colors = {
+      blue: ["rgba(100,150,255,", "rgb(100,150,255)", "rgb(80,120,200)"],
+      orange: ["rgba(255,150,100,", "rgb(255,150,100)", "rgb(200,120,80)"],
+      grey: "rgb(128,128,128)",
+    };
+
     // Draw orbitals
     for (let orbital of this.orbitals) {
       ctx.save();
 
-      if (orbital.rotate && !orbital.occupied) {
-        // Rotating orbital with gap
+      let blue = orbital.type === "blue";
+      let occ = orbital.occupied;
+      let stunned = orbital.stunned;
+      let c = colors[orbital.type] || colors.grey;
+
+      if (occ) {
+        // Occupied orbital - show as filled circle with glow
+        ctx.shadowColor = c[0] + "0.8)";
+        ctx.shadowBlur = 20;
+
+        // Apply shake offset for occupied orbitals
+        let drawX = orbital.x + orbital.shakeOffsetX;
+        let drawY = orbital.y + orbital.shakeOffsetY;
+
+        let grad = ctx.createRadialGradient(
+          drawX,
+          drawY,
+          0,
+          drawX,
+          drawY,
+          orbital.radius
+        );
+        grad.addColorStop(0, c[0] + "0.9)");
+        grad.addColorStop(1, c[0] + "0.2)");
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
+        ctx.fill();
+
+        ctx.strokeStyle = c[1];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(drawX, drawY, orbital.radius, 0, this.TAU);
+        ctx.stroke();
+      } else {
+        // Unoccupied rotating orbital with gap
         ctx.translate(orbital.x, orbital.y);
         ctx.rotate(orbital.angle);
 
-        ctx.strokeStyle = orbital.type === "blue" ? "rgb(80,120,200)" : "rgb(200,120,80)";
+        // Main arc with gap
+        ctx.strokeStyle = stunned ? colors.grey : c[2];
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(
@@ -294,105 +535,103 @@ class OrbitalSystem {
           0,
           orbital.radius,
           orbital.gap / 2,
-          Math.PI * 2 - orbital.gap / 2
+          this.TAU - orbital.gap / 2
         );
         ctx.stroke();
 
         // Gap indicators
-        ctx.strokeStyle = orbital.type === "blue" ? "rgba(100,150,255,0.6)" : "rgba(255,100,100,0.6)";
+        ctx.strokeStyle = stunned ? "rgba(128,128,128,0.6)" : c[0] + "0.6)";
         ctx.lineWidth = 2;
         ctx.beginPath();
         let r1 = orbital.radius,
           r2 = r1 + 8,
           g = orbital.gap / 2;
-        ctx.moveTo(r1 * Math.cos(g), r1 * Math.sin(g));
-        ctx.lineTo(r2 * Math.cos(g), r2 * Math.sin(g));
-        ctx.moveTo(r1 * Math.cos(-g), r1 * Math.sin(-g));
-        ctx.lineTo(r2 * Math.cos(-g), r2 * Math.sin(-g));
-        ctx.stroke();
-
-        ctx.restore();
-      } else {
-        // Static/occupied orbital
-        let grad = ctx.createRadialGradient(
-          orbital.x,
-          orbital.y,
-          0,
-          orbital.x,
-          orbital.y,
-          orbital.radius
-        );
-        let blue = orbital.type === "blue";
-        let occ = orbital.occupied;
-
-        if (occ) {
-          grad.addColorStop(
-            0,
-            blue ? "rgba(100,150,255,0.6)" : "rgba(255,150,100,0.6)"
-          );
-          grad.addColorStop(
-            1,
-            blue ? "rgba(100,150,255,0)" : "rgba(255,150,100,0)"
-          );
-        } else {
-          grad.addColorStop(
-            0,
-            blue ? "rgba(100,150,255,0.3)" : "rgba(255,150,100,0.3)"
-          );
-          grad.addColorStop(
-            1,
-            blue ? "rgba(100,150,255,0)" : "rgba(255,150,100,0)"
-          );
-        }
-
-        ctx.fillStyle = grad;
-        ctx.fillRect(
-          orbital.x - orbital.radius,
-          orbital.y - orbital.radius,
-          orbital.radius * 2,
-          orbital.radius * 2
-        );
-
-        ctx.strokeStyle = blue
-          ? occ
-            ? "rgb(100,150,255)"
-            : "rgb(80,120,200)"
-          : occ
-          ? "rgb(255,150,100)"
-          : "rgb(200,120,80)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(orbital.x, orbital.y, orbital.radius, 0, Math.PI * 2);
+        const M = Math; // Shorter reference for size optimization
+        ctx.moveTo(r1 * M.cos(g), r1 * M.sin(g));
+        ctx.lineTo(r2 * M.cos(g), r2 * M.sin(g));
+        ctx.moveTo(r1 * M.cos(-g), r1 * M.sin(-g));
+        ctx.lineTo(r2 * M.cos(-g), r2 * M.sin(-g));
         ctx.stroke();
       }
+
       ctx.restore();
     }
 
+    // UI Constants
+    const F16 = "16px Arial",
+      F18 = "18px 'Courier New', monospace";
+    const WHITE = "white",
+      CYAN = "rgb(0, 255, 255)";
+
     // UI
-    ctx.fillStyle = "white";
-    ctx.font = "16px Arial";
+    ctx.fillStyle = WHITE;
+    ctx.font = F16;
     ctx.fillText(`${this.levels[this.currentLevel].name}`, 20, 30);
-    ctx.fillText(`Score: ${this.score}`, 20, 50);
+
+    // Enhanced score text with glow effect
+    ctx.save();
+    ctx.font = F18;
+    ctx.textAlign = "left";
+
+    // Glow effect for score
+    ctx.shadowColor = CYAN;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = CYAN;
+    ctx.fillText(`SCORE: ${this.score}`, 20, 55);
+
+    ctx.restore();
+
+    ctx.fillStyle = WHITE;
+    ctx.font = F16;
     ctx.fillText(
       `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
         this.orbitals.length
       }`,
       20,
-      70
+      80
     );
 
+    // Timer display
     let timeLeft = Math.max(0, this.levelTime - this.time);
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 90);
+    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 100);
 
     if (this.checkCompletion()) {
-      ctx.fillStyle = "yellow";
-      ctx.font = "24px Arial";
-      ctx.fillText("Complete! Click for next level", 200, 100);
+      ctx.save();
+
+      // Center the completion text
+      ctx.textAlign = "center";
+      ctx.font = "32px 'Courier New', monospace";
+
+      // Multiple glow layers for enhanced effect
+      ctx.shadowColor = "rgb(255, 255, 0)";
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = "rgb(255, 255, 0)";
+      ctx.fillText("LEVEL COMPLETE", this.canvas.width / 2, 150);
+
+      // Secondary glow
+      ctx.shadowColor = "rgb(255, 200, 0)";
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = "rgb(255, 255, 200)";
+      ctx.fillText("LEVEL COMPLETE", this.canvas.width / 2, 150);
+
+      // Smaller instruction text
+      ctx.font = "18px 'Courier New', monospace";
+      ctx.shadowColor = "rgb(0, 255, 255)";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "rgb(0, 255, 255)";
+      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", this.canvas.width / 2, 180);
+
+      ctx.restore();
     } else if (timeLeft <= 0) {
-      ctx.fillStyle = "red";
-      ctx.font = "20px Arial";
-      ctx.fillText("Time's up! Click to retry", 200, 100);
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.font = "24px 'Courier New', monospace";
+      ctx.shadowColor = "rgb(255, 100, 100)";
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = "rgb(255, 100, 100)";
+      ctx.fillText("TIME'S UP! CLICK TO RETRY", this.canvas.width / 2, 150);
+      ctx.restore();
     }
   }
 }
@@ -403,8 +642,6 @@ class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
-    this.canvas.width = 800;
-    this.canvas.height = 600;
 
     // Systems
     this.input = new InputSystem(this.canvas);
@@ -413,6 +650,10 @@ class Game {
     // Electrons
     this.electrons = [];
     this.spawnElectrons();
+
+    // Background particles for atmosphere
+    this.particles = [];
+    this.spawnParticles();
 
     // Click handler for level progression/restart
     this.canvas.addEventListener("click", () => {
@@ -432,32 +673,52 @@ class Game {
   spawnElectrons() {
     this.electrons = [];
 
-    let blueCount = this.orbitals.orbitals.filter(
-      (o) => o.type === "blue"
-    ).length;
-    let orangeCount = this.orbitals.orbitals.filter(
-      (o) => o.type === "orange"
-    ).length;
+    // Count and spawn electrons for each type
+    ["blue", "orange"].forEach((type) => {
+      let count = this.orbitals.orbitals.filter((o) => o.type === type).length;
+      for (let i = 0; i < count; i++) {
+        this.electrons.push(
+          new Electron(
+            Math.random() * (this.canvas.width - 100) + 50,
+            Math.random() * (this.canvas.height - 100) + 50,
+            type
+          )
+        );
+      }
+    });
+  }
 
-    for (let i = 0; i < blueCount; i++) {
-      this.electrons.push(
-        new Electron(Math.random() * 700 + 50, Math.random() * 500 + 50, "blue")
-      );
-    }
-
-    for (let i = 0; i < orangeCount; i++) {
-      this.electrons.push(
-        new Electron(
-          Math.random() * 700 + 50,
-          Math.random() * 500 + 50,
-          "orange"
-        )
-      );
+  spawnParticles() {
+    this.particles = [];
+    // Create subtle background particles
+    for (let i = 0; i < 30; i++) {
+      this.particles.push({
+        x: Math.random() * this.canvas.width,
+        y: Math.random() * this.canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        alpha: Math.random() * 0.4 + 0.1,
+        phase: Math.random() * Math.PI * 2,
+        size: Math.random() * 1.5 + 0.5
+      });
     }
   }
 
   update() {
     this.orbitals.update();
+
+    // Update particles with subtle drift and twinkling
+    for (let p of this.particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.phase += 0.02;
+      
+      // Wrap around edges
+      if (p.x < 0) p.x = this.canvas.width;
+      if (p.x > this.canvas.width) p.x = 0;
+      if (p.y < 0) p.y = this.canvas.height;
+      if (p.y > this.canvas.height) p.y = 0;
+    }
 
     for (let electron of this.electrons) {
       electron.update(
@@ -468,9 +729,31 @@ class Game {
       );
     }
   }
+
   draw() {
     this.ctx.fillStyle = "rgb(10,10,20)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw background particles
+    this.ctx.save();
+    for (let p of this.particles) {
+      let twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(p.phase));
+      this.ctx.fillStyle = `rgba(200,220,255,${p.alpha * twinkle})`;
+      this.ctx.beginPath();
+      this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    this.ctx.restore();
+
+    // Draw cursor glow
+    this.ctx.save();
+    this.ctx.shadowColor = "rgba(100,150,255,0.6)";
+    this.ctx.shadowBlur = 20;
+    this.ctx.fillStyle = "rgba(100,150,255,0.2)";
+    this.ctx.beginPath();
+    this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.restore();
 
     this.orbitals.draw(this.ctx);
 
