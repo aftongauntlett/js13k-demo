@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Atomic Puzzle Game - js13k Demo</title>
+    <!-- Inline SVG favicon to avoid 404 -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3e%3ccircle cx='16' cy='16' r='12' fill='%23064e3b' stroke='%2369f' stroke-width='2'/%3e%3ccircle cx='16' cy='16' r='6' fill='%23fff' opacity='0.2'/%3e%3ccircle cx='22' cy='10' r='3' fill='%234a90e2'/%3e%3ccircle cx='10' cy='22' r='3' fill='%23ff6b35'/%3e%3c/svg%3e"
+    />
     <style>
       body {
         margin: 0;
@@ -41,229 +47,176 @@
       Atomic Puzzle Game - Guide electrons to matching colored orbitals
     </div>
 
-    <script>
-// Simple electron with polarity-based physics
-class Electron {
-  constructor(x, y, type, audioSystem = null) {
+    <!-- All Combined & Golfed JavaScript -->
+  <script>
+
+// Ultra-golfed electron for JS13K
+class E {
+  constructor(x, y, type, a) {
     this.x = x;
     this.y = y;
-    this.vx = (Math.random() - 0.5) * 2;
-    this.vy = (Math.random() - 0.5) * 2;
-    this.type = type; // 'blue', 'orange', or 'grey'
-    this.originalType = type; // Store original type for recovery
-    this.radius = 8;
-    this.captured = false;
-    this.mouseInfluenced = false;
-    this.inactive = false; // True when electron becomes grey/inactive
-    this.inactiveTime = 0; // Time remaining inactive
-    this.TAU = Math.PI * 2; // 2π constant for efficiency
-    this.audio = audioSystem; // Reference to audio system
+    this.type = type;
+    this.vx = 0;
+    this.vy = 0;
+    this.r = 8;
+    this.captured = 0;
+    this.inactive = 0;
+    this.inactiveTime = 0;
+    this.a = a;
+    this.lastSound = 0;
+    this.mouseInfluenced = 0;
   }
 
-  // Handle boundary collisions for all scenarios
-  handleBoundaries(canvasWidth, canvasHeight) {
-    // UI collision boundaries - invisible walls around text areas
-    // Top-left UI area (level, score, timer)
+  update(mx, my, orbitals, orbitalSys) {
+    if (this.captured) return;
+
+    if (this.inactive > 0) {
+      this.inactive -= 1 / 60;
+      this.inactiveTime = this.inactive;
+      if (this.inactive <= 0) {
+        this.inactive = 0;
+        this.inactiveTime = 0;
+      }
+      return;
+    }
+
+    // Mouse interaction
+    let dx = mx - this.x,
+      dy = my - this.y,
+      dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 120) {
+      this.mouseInfluenced = 1;
+      let force = (0.3 * (120 - dist)) / 120;
+      let fx = (dx / dist) * force,
+        fy = (dy / dist) * force;
+
+      if (this.type === 0) {
+        // blue - attract to mouse
+        this.vx += fx * 0.5;
+        this.vy += fy * 0.5;
+      } else {
+        // orange - repel from mouse
+        this.vx -= fx * 0.5;
+        this.vy -= fy * 0.5;
+      }
+    } else this.mouseInfluenced = 0;
+
+    // Orbital interactions
+    for (let orb of orbitals) {
+      if (orb.occupied || orb.stunned > 0.1) continue;
+
+      let dx = orb.x - this.x,
+        dy = orb.y - this.y,
+        dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 60) {
+        let force = (0.1 * (60 - dist)) / 60;
+        let fx = (dx / dist) * force,
+          fy = (dy / dist) * force;
+
+        if (this.type === orb.type) {
+          // attract to matching orbital
+          this.vx += fx;
+          this.vy += fy;
+        } else {
+          // repel from wrong orbital
+          this.vx -= fx * 0.5;
+          this.vy -= fy * 0.5;
+        }
+      }
+
+      // Capture check
+      if (orbitalSys.canEnter(orb, this.x, this.y)) {
+        if (this.type === orb.type) {
+          orb.occupied = 1;
+          this.captured = 1;
+          this.a?.p(1);
+          return;
+        } else {
+          orbitalSys.stun(orb);
+        }
+      }
+
+      // Hit occupied orbital
+      if (orb.occupied && dist < 25) {
+        orbitalSys.hit(orb);
+        this.inactive = 3;
+        this.inactiveTime = 3;
+      }
+    }
+
+    // Apply physics
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vx *= 0.98;
+    this.vy *= 0.98;
+
+    // Boundaries with sound
+    let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    let now = Date.now();
+
+    if (this.x < this.r) {
+      this.x = this.r;
+      this.vx = -this.vx * 0.8;
+      this.sound(speed, now);
+    }
+    if (this.x > 800 - this.r) {
+      this.x = 800 - this.r;
+      this.vx = -this.vx * 0.8;
+      this.sound(speed, now);
+    }
+    if (this.y < this.r) {
+      this.y = this.r;
+      this.vy = -this.vy * 0.8;
+      this.sound(speed, now);
+    }
+    if (this.y > 600 - this.r) {
+      this.y = 600 - this.r;
+      this.vy = -this.vy * 0.8;
+      this.sound(speed, now);
+    }
+
+    // UI boundaries
     if (this.x < 220 && this.y < 120) {
-      if (this.x < 220 && this.y > 110) {
-        // Bottom edge of UI area
+      if (this.y > 110) {
         this.y = 120;
         this.vy = Math.abs(this.vy);
-      } else if (this.x > 210 && this.y < 120) {
-        // Right edge of UI area
+      }
+      if (this.x > 210) {
         this.x = 220;
         this.vx = Math.abs(this.vx);
       }
     }
-
-    // Bottom instruction text area
-    if (this.y > canvasHeight - 50) {
-      this.y = canvasHeight - 50;
-      this.vy = -Math.abs(this.vy);
-    }
-
-    // Canvas boundaries
-    if (this.x < this.radius) {
-      this.x = this.radius;
-      this.vx = Math.abs(this.vx);
-    }
-    if (this.x > canvasWidth - this.radius) {
-      this.x = canvasWidth - this.radius;
-      this.vx = -Math.abs(this.vx);
-    }
-    if (this.y < this.radius) {
-      this.y = this.radius;
-      this.vy = Math.abs(this.vy);
-    }
-    if (this.y > canvasHeight - this.radius) {
-      this.y = canvasHeight - this.radius;
+    if (this.y > 550) {
+      this.y = 550;
       this.vy = -Math.abs(this.vy);
     }
   }
 
-  update(mouseX, mouseY, orbitals, orbitalSystem) {
-    if (this.captured) return;
-
-    const M = Math; // Shorter reference for size optimization
-
-    // Handle inactive electron recovery
-    if (this.inactive) {
-      this.inactiveTime -= 1 / 60; // Decrease by 1/60th second (assuming 60fps)
-      if (this.inactiveTime <= 0) {
-        // Reactivate electron
-        this.inactive = false;
-        this.type = this.originalType;
-      } else {
-        // Still inactive, just update physics but no mouse interaction
-        this.vx *= 0.98;
-        this.vy *= 0.98;
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Use shared boundary handling
-        this.handleBoundaries(
-          orbitalSystem.canvas.width,
-          orbitalSystem.canvas.height
-        );
-        return;
-      }
-    }
-
-    let dx = this.x - mouseX,
-      dy = this.y - mouseY;
-    let distance = M.sqrt(dx * dx + dy * dy);
-
-    // Track if mouse is close enough to influence electron (only if not inactive)
-    this.mouseInfluenced = distance < 150;
-
-    if (distance > 0 && this.mouseInfluenced) {
-      let force = this.type === "blue" ? -0.15 : 0.15;
-      this.vx += (dx / distance) * force;
-      this.vy += (dy / distance) * force;
-    }
-
-    this.vx *= 0.98;
-    this.vy *= 0.98;
-    this.x += this.vx;
-    this.y += this.vy;
-
-    // Play subtle gliding sound based on velocity (only when moving fast enough)
-    let velocity = M.sqrt(this.vx * this.vx + this.vy * this.vy);
-    if (velocity > 2 && this.audio && M.random() < 0.03) {
-      // 3% chance per frame when moving fast
-      this.audio.playOrbitalGlide(velocity / 10); // Normalize velocity for sound intensity
-    }
-
-    // Get canvas bounds from orbital system
-    let canvasWidth = orbitalSystem.canvas.width;
-    let canvasHeight = orbitalSystem.canvas.height;
-
-    // Handle all boundary collisions
-    this.handleBoundaries(canvasWidth, canvasHeight);
-
-    // Orbital interactions
-    for (let orbital of orbitals) {
-      let odx = this.x - orbital.x,
-        ody = this.y - orbital.y;
-      let odist = M.sqrt(odx * odx + ody * ody);
-
-      if (odist < orbital.radius + this.radius) {
-        if (orbital.occupied && !this.inactive) {
-          // Hit an occupied orbital - trigger shake/knockout
-          let electronKnockedOut = orbitalSystem.hitOccupiedOrbital(orbital);
-
-          if (electronKnockedOut) {
-            // Play knock out sound
-            if (this.audio) {
-              this.audio.playElectronKnockedOut();
-            }
-            // Electron will be respawned by the orbital system
-          } else {
-            // Just a collision, not a knockout
-            if (this.audio) {
-              this.audio.playOrbitalCollision();
-            }
-          }
-
-          // Bounce away from orbital
-          let bounceX = odx / odist,
-            bounceY = ody / odist;
-          this.vx = bounceX * 3;
-          this.vy = bounceY * 3;
-          this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
-          this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
-        } else if (orbital.type === this.type) {
-          // Correct color orbital
-          if (!orbital.occupied) {
-            // Check if electron can enter this orbital (considers rotation gaps)
-            if (
-              this.mouseInfluenced &&
-              orbitalSystem.canEnterOrbital(orbital, this.x, this.y)
-            ) {
-              // Electron can enter - capture it
-              orbital.occupied = true;
-              this.captured = true;
-              this.x = orbital.x;
-              this.y = orbital.y;
-
-              // Play capture sound
-              if (this.audio) {
-                this.audio.playElectronCapture();
-              }
-
-              break;
-            } else if (orbital.rotate) {
-              // Rotating orbital but electron can't enter through gap - bounce
-              let bounceX = odx / odist,
-                bounceY = ody / odist;
-              this.vx = bounceX * 3;
-              this.vy = bounceY * 3;
-              this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
-              this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
-            }
-          }
-        } else if (!orbital.occupied && !this.inactive) {
-          // Wrong color orbital - make electron inactive and stun orbital
-          this.inactive = true;
-          this.type = "grey";
-          this.mouseInfluenced = false;
-          this.inactiveTime = 5; // Inactive for 5 seconds
-          orbitalSystem.stunOrbital(orbital);
-
-          // Play wrong electron sound
-          if (this.audio) {
-            this.audio.playWrongElectron();
-          }
-
-          // Bounce away from orbital
-          let bounceX = odx / odist,
-            bounceY = ody / odist;
-          this.vx = bounceX * 3;
-          this.vy = bounceY * 3;
-          this.x = orbital.x + bounceX * (orbital.radius + this.radius + 2);
-          this.y = orbital.y + bounceY * (orbital.radius + this.radius + 2);
-        }
-      }
+  sound(speed, now) {
+    if (this.a?.p && now - this.lastSound > 200) {
+      this.a.p(0, Math.min(1, speed / 6));
+      this.lastSound = now;
     }
   }
 
   draw(ctx) {
     if (this.captured) return;
 
-    const M = Math; // Shorter reference for size optimization
     ctx.save();
 
-    // Color map for electrons
-    const colors = {
-      blue: ["rgba(100,150,255,0.8)", "rgb(150,200,255)", "rgb(100,150,255)"],
-      orange: ["rgba(255,150,100,0.8)", "rgb(255,200,150)", "rgb(255,150,100)"],
-    };
+    // Colors: [blue,orange]
+    let colors = [
+      ["rgba(100,150,255,.8)", "rgb(150,200,255)", "rgb(100,150,255)"],
+      ["rgba(255,150,100,.8)", "rgb(255,200,150)", "rgb(255,150,100)"],
+    ];
+    let c = colors[this.type] || [
+      "rgba(128,128,128,.8)",
+      "rgb(180,180,180)",
+      "rgb(120,120,120)",
+    ];
 
-    // Add subtle glow when mouse-influenced (but not if inactive)
     if (this.mouseInfluenced && !this.inactive) {
-      ctx.shadowColor = colors[this.type]
-        ? colors[this.type][0]
-        : "rgba(128,128,128,0.8)";
+      ctx.shadowColor = c[0];
       ctx.shadowBlur = 15;
     }
 
@@ -273,1247 +226,600 @@ class Electron {
       0,
       this.x,
       this.y,
-      this.radius
+      this.r
     );
 
-    if (colors[this.type]) {
-      let c = colors[this.type];
+    if (this.inactive && this.inactiveTime > 0) {
+      let pulse = 0.5 + 0.3 * Math.sin(Date.now() * 0.01);
+      grad.addColorStop(0, `rgba(180,180,180,${pulse})`);
+      grad.addColorStop(1, `rgba(120,120,120,${pulse * 0.7})`);
+    } else {
       grad.addColorStop(0, c[1]);
       grad.addColorStop(1, c[2]);
-    } else {
-      // Grey/inactive electron with recovery indicator
-      if (this.inactive && this.inactiveTime > 0) {
-        // Add pulsing effect as it recovers
-        let pulse = 0.5 + 0.3 * M.sin(Date.now() * 0.01);
-        grad.addColorStop(0, `rgba(180,180,180,${pulse})`);
-        grad.addColorStop(1, `rgba(120,120,120,${pulse * 0.7})`);
-      } else {
-        grad.addColorStop(0, "rgb(180,180,180)");
-        grad.addColorStop(1, "rgb(120,120,120)");
-      }
     }
 
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, this.TAU);
+    ctx.arc(this.x, this.y, this.r, 0, 6.28);
     ctx.fill();
+
+    // Spin indicator
+    if (!this.inactive) {
+      ctx.fillStyle = c[1];
+      ctx.font = "10px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(this.type ? "↑" : "↓", this.x, this.y + 3);
+    }
+
     ctx.restore();
   }
 }
 
 
-// Tutorial overlay system for explaining game mechanics and electron physics
-class Tutorial {
-  constructor(game) {
-    this.game = game;
-    this.isVisible = false;
-    this.currentStep = 0;
-    this.totalSteps = 4;
-    this.overlay = null;
-    this.hasBeenShown = localStorage.getItem("atomicTutorialShown") === "true";
-
-    this.steps = [
-      {
-        title: "Welcome to Atomic Assembly!",
-        content: `
-          <div class="tutorial-content">
-            <h3>Learn Real Atomic Physics!</h3>
-            <p>You'll build atoms by placing electrons in their correct orbitals, learning how real atoms work!</p>
-            <div class="physics-key">
-              <h4>Your Mission:</h4>
-              <p>- Each level shows a real chemical element (H, He, Li, C, N)</p>
-              <p>- Place electrons in the correct orbital positions</p>
-              <p>- Learn about electron spins and quantum mechanics!</p>
-            </div>
-          </div>
-        `,
-        buttonText: "Continue",
-      },
-      {
-        title: "Understanding Electron Spins",
-        content: `
-          <div class="tutorial-content">
-            <h3>The Science Behind the Colors</h3>
-            <div class="spin-explanation">
-              <div class="spin-demo">
-                <div class="orb blue-orb"></div>
-                <div class="spin-label">
-                  <strong>Blue Orbs = Spin-Down <div class="orb-inline blue-orb"></div></strong><br>
-                  <small>Electrons spinning in one direction</small>
-                </div>
-              </div>
-              <div class="spin-demo">
-                <div class="orb orange-orb"></div>
-                <div class="spin-label">
-                  <strong>Orange Orbs = Spin-Up <div class="orb-inline orange-orb"></div></strong><br>
-                  <small>Electrons spinning in the opposite direction</small>
-                </div>
-              </div>
-            </div>
-            <p class="physics-fact">
-              <strong>Real Physics:</strong> Electrons have a quantum property called "spin". 
-              Each orbital can hold up to 2 electrons, but they must have opposite spins. 
-              Some atoms like Hydrogen have only 1 electron, leaving orbitals half-filled.
-            </p>
-          </div>
-        `,
-        buttonText: "Continue",
-      },
-      {
-        title: "How to Play",
-        content: `
-          <div class="tutorial-content">
-            <h3>Game Controls</h3>
-            <div class="controls-grid">
-              <div class="control-item">
-                <strong>Mouse Physics:</strong> Your mouse cursor attracts and repels electrons - use physics to guide them!
-              </div>
-              <div class="control-item">
-                <strong>Target Mechanics:</strong> Blue electrons attract to blue targets, orange electrons repel to orange targets
-              </div>
-              <div class="control-item">
-                <strong>Penalties:</strong> Hitting opposing targets causes penalties. Hitting filled targets twice knocks electrons out!
-              </div>
-              <div class="control-item">
-                <strong>Time Limit:</strong> Complete each atom before time runs out
-              </div>
-              <div class="control-item">
-                <strong>Level Up:</strong> Each element gets more complex with more electrons!
-              </div>
-            </div>
-          </div>
-        `,
-        buttonText: "Continue",
-      },
-      {
-        title: "Pro Tips for Success",
-        content: `
-          <div class="tutorial-content">
-            <h3>Master the Physics!</h3>
-            <div class="tips-list">
-              <div class="tip">
-                <strong>Pauli Exclusion Principle:</strong><br>
-                Each orbital can hold up to 2 electrons maximum, and they must have opposite spins if both are present
-              </div>
-              <div class="tip">
-                <strong>Hund's Rule:</strong><br>
-                Electrons prefer to occupy empty orbitals first before pairing up (you'll see this in Carbon and Nitrogen!)
-              </div>
-              <div class="tip">
-                <strong>Audio Cues:</strong><br>
-                Listen for different sounds - successful captures, collisions, and level completions all have unique audio feedback
-              </div>
-              <div class="tip">
-                <strong>Read the Facts:</strong><br>
-                Each element includes real scientific facts about its properties and behavior!
-              </div>
-            </div>
-          </div>
-        `,
-        buttonText: "Start Game",
-      },
+// Ultra-golfed tutorial system for JS13K
+class T {
+  constructor(g) {
+    this.g = g;
+    this.v = 0;
+    this.s = 0;
+    this.o = null;
+    this.h = localStorage.getItem("t") === "1";
+    // Compact text data - indexed strings
+    this.t = [
+      "Welcome to Atomic Assembly!",
+      "Learn Real Atomic Physics!",
+      "Build atoms by placing electrons in correct orbitals",
+      "Understanding Electron Spins",
+      "Blue = Spin-Down, Orange = Spin-Up",
+      "Each orbital holds max 2 electrons with opposite spins",
+      "How to Play",
+      "Mouse attracts/repels electrons - use physics!",
+      "Match electron colors to orbital colors",
+      "Time limit - complete before timeout",
+      "Pro Tips",
+      "Pauli Exclusion: max 2 electrons per orbital",
+      "Hund's Rule: fill empty orbitals first",
+      "Listen for audio feedback",
+      "Continue",
+      "Start Game",
+    ];
+    // Step data: [title_idx, content_start_idx, content_count, button_idx]
+    this.d = [
+      [0, 1, 2, 14],
+      [3, 4, 1, 14],
+      [6, 7, 2, 14],
+      [10, 11, 3, 15],
     ];
   }
 
   show() {
-    this.isVisible = true;
-    this.currentStep = 0;
-    this.createOverlay();
-    this.updateContent();
+    this.v = 1;
+    this.s = 0;
+    this.c();
+    this.u();
   }
 
   hide() {
-    this.isVisible = false;
-    if (this.overlay) {
-      this.overlay.remove();
-      this.overlay = null;
+    this.v = 0;
+    if (this.o) {
+      this.o.remove();
+      this.o = null;
     }
-    // Mark tutorial as shown
-    localStorage.setItem("atomicTutorialShown", "true");
-    this.hasBeenShown = true;
+    localStorage.setItem("t", "1");
+    this.h = 1;
   }
 
-  createOverlay() {
-    this.overlay = document.createElement("div");
-    this.overlay.className = "tutorial-overlay";
-    this.overlay.innerHTML = `
-      <div class="tutorial-modal">
-        <div class="tutorial-header">
-          <div class="step-indicator">
-            <span class="current-step">1</span> / <span class="total-steps">${this.totalSteps}</span>
-          </div>
-          <button class="tutorial-close" onclick="tutorial.hide()">X</button>
-        </div>
-        <div class="tutorial-body">
-          <h2 class="tutorial-title"></h2>
-          <div class="tutorial-text"></div>
-        </div>
-        <div class="tutorial-footer">
-          <button class="tutorial-prev" onclick="tutorial.previousStep()" style="display: none;">Previous</button>
-          <button class="tutorial-next" onclick="tutorial.nextStep()">Next</button>
-        </div>
+  c() {
+    this.o = document.createElement("div");
+    // Minimal inline styling
+    this.o.style.cssText =
+      "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
+
+    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:500px;max-height:80vh;overflow:auto">
+      <div style="display:flex;justify-content:space-between;padding:15px;border-bottom:1px solid #69f;background:#222">
+        <span>${this.s + 1}/4</span>
+        <button onclick="tutorial.hide()" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
       </div>
-    `;
+      <div style="padding:20px">
+        <h2 style="color:#ff6;margin:0 0 15px;font-size:18px" class="title"></h2>
+        <div class="content" style="line-height:1.5"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;padding:15px;border-top:1px solid #69f;background:#222">
+        <button onclick="tutorial.prev()" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none" class="prev">Previous</button>
+        <button onclick="tutorial.next()" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px" class="next">Next</button>
+      </div>
+    </div>`;
 
-    // Add CSS styles - matching the subtle level complete menu colors
-    const style = document.createElement("style");
-    style.textContent = `
-      /* Color theme matching level complete screen */
-      :root {
-        --primary-bg: #000000;
-        --secondary-bg: #1a1a1a;
-        --border-color: rgb(100, 150, 255);
-        --title-color: rgb(255, 255, 100);
-        --heading-color: rgb(100, 200, 255);
-        --text-color: rgb(200, 200, 200);
-        --accent-color: rgb(255, 200, 100);
-        --subtle-bg: rgba(50, 50, 80, 0.3);
-      }
-
-      .tutorial-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        font-family: "Courier New", monospace;
-      }
-
-      .tutorial-modal {
-        background: var(--primary-bg);
-        border: 2px solid var(--border-color);
-        border-radius: 0;
-        max-width: 600px;
-        width: 90%;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 0 20px rgba(100, 150, 255, 0.2);
-        color: var(--text-color);
-      }
-
-      .tutorial-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 20px;
-        border-bottom: 1px solid var(--border-color);
-        background: var(--secondary-bg);
-      }
-
-      .step-indicator {
-        background: var(--subtle-bg);
-        padding: 8px 16px;
-        border-radius: 0;
-        border: 1px solid var(--border-color);
-        font-size: 12px;
-        font-weight: bold;
-        color: var(--heading-color);
-      }
-
-      .current-step {
-        color: var(--text-color);
-      }
-
-      .tutorial-close {
-        background: var(--subtle-bg);
-        border: 1px solid var(--border-color);
-        color: var(--heading-color);
-        font-size: 14px;
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 0;
-        font-family: "Courier New", monospace;
-        font-weight: bold;
-      }
-
-      .tutorial-close:hover {
-        background: rgba(100, 150, 255, 0.2);
-        color: var(--text-color);
-      }
-
-      .tutorial-body {
-        padding: 25px;
-        background: var(--secondary-bg);
-      }
-
-      .tutorial-title {
-        color: var(--title-color);
-        margin: 0 0 20px 0;
-        font-size: 24px;
-        font-weight: bold;
-        font-family: "Courier New", monospace;
-        text-align: center;
-      }
-
-      .tutorial-content h3 {
-        color: var(--heading-color);
-        margin: 0 0 15px 0;
-        font-size: 18px;
-        font-family: "Courier New", monospace;
-      }
-
-      .tutorial-content h4 {
-        color: var(--accent-color);
-        margin: 15px 0 10px 0;
-        font-size: 14px;
-        font-family: "Courier New", monospace;
-      }
-
-      .tutorial-content p {
-        line-height: 1.6;
-        margin: 10px 0;
-        color: var(--text-color);
-        font-family: "Courier New", monospace;
-        font-size: 13px;
-      }
-
-      .physics-key, .physics-fact {
-        background: var(--subtle-bg);
-        border: 1px solid var(--border-color);
-        padding: 15px;
-        margin: 15px 0;
-        border-radius: 0;
-      }
-
-      .spin-explanation {
-        margin: 20px 0;
-      }
-
-      .spin-demo {
-        display: flex;
-        align-items: center;
-        margin: 15px 0;
-        padding: 15px;
-        background: var(--subtle-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 0;
-      }
-
-      .orb {
-        width: 30px;
-        height: 30px;
-        border-radius: 0;
-        margin-right: 20px;
-        border: 2px solid var(--text-color);
-      }
-
-      .orb-inline {
-        width: 16px;
-        height: 16px;
-        border-radius: 0;
-        display: inline-block;
-        margin: 0 4px;
-        border: 1px solid var(--text-color);
-        vertical-align: middle;
-      }
-
-      .blue-orb {
-        background: #4a90e2;
-      }
-
-      .orange-orb {
-        background: #ff6b35;
-      }
-
-      .spin-label strong {
-        color: var(--text-color);
-        font-size: 14px;
-        font-family: "Courier New", monospace;
-      }
-
-      .spin-label small {
-        color: rgba(200, 200, 200, 0.8);
-        font-family: "Courier New", monospace;
-      }
-
-      .controls-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
-        margin: 20px 0;
-      }
-
-      .control-item {
-        background: var(--subtle-bg);
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 0;
-      }
-
-      .control-item strong {
-        color: var(--heading-color);
-        font-family: "Courier New", monospace;
-      }
-
-      .keyboard-controls {
-        background: var(--subtle-bg);
-        padding: 15px;
-        border: 1px solid var(--border-color);
-        border-radius: 0;
-        margin-top: 20px;
-      }
-
-      .keyboard-controls h4 {
-        margin-top: 0;
-      }
-
-      .keyboard-controls p {
-        margin: 10px 0 0 0;
-        font-family: "Courier New", monospace;
-      }
-
-      .tips-list {
-        display: grid;
-        gap: 10px;
-        margin: 20px 0;
-      }
-
-      .tip {
-        background: var(--subtle-bg);
-        padding: 15px;
-        border: 1px solid var(--border-color);
-        border-radius: 0;
-      }
-
-      .tip strong {
-        color: var(--heading-color);
-        display: block;
-        margin-bottom: 8px;
-        font-family: "Courier New", monospace;
-      }
-
-      .tutorial-footer {
-        display: flex;
-        justify-content: flex-end;
-        padding: 15px 20px;
-        border-top: 1px solid var(--border-color);
-        background: var(--secondary-bg);
-      }
-
-      .tutorial-prev {
-        margin-right: auto;
-      }
-
-      .tutorial-prev, .tutorial-next {
-        background: var(--subtle-bg);
-        color: var(--heading-color);
-        border: 1px solid var(--border-color);
-        padding: 12px 24px;
-        border-radius: 0;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        font-family: "Courier New", monospace;
-      }
-
-      .tutorial-prev:hover, .tutorial-next:hover {
-        background: rgba(100, 150, 255, 0.2);
-        color: var(--text-color);
-      }
-
-      .tutorial-prev {
-        background: var(--primary-bg);
-        color: var(--accent-color);
-      }
-
-      .tutorial-prev:hover {
-        background: rgba(255, 200, 100, 0.1);
-      }
-
-      @media (max-width: 600px) {
-        .tutorial-modal {
-          margin: 20px;
-          max-height: 90vh;
-        }
-        
-        .tutorial-body {
-          padding: 15px;
-        }
-        
-        .tutorial-header, .tutorial-footer {
-          padding: 10px 15px;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-    document.body.appendChild(this.overlay);
-
-    // Add click handler to close button
-    this.overlay
-      .querySelector(".tutorial-close")
-      .addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.hide();
-      });
-
-    // Prevent closing when clicking on modal content
-    this.overlay
-      .querySelector(".tutorial-modal")
-      .addEventListener("click", (e) => {
-        e.stopPropagation();
-      });
+    document.body.appendChild(this.o);
   }
 
-  updateContent() {
-    if (!this.overlay) return;
-
-    const step = this.steps[this.currentStep];
-
-    this.overlay.querySelector(".current-step").textContent =
-      this.currentStep + 1;
-    this.overlay.querySelector(".tutorial-title").textContent = step.title;
-    this.overlay.querySelector(".tutorial-text").innerHTML = step.content;
-
-    const prevBtn = this.overlay.querySelector(".tutorial-prev");
-    const nextBtn = this.overlay.querySelector(".tutorial-next");
-
-    prevBtn.style.display = this.currentStep > 0 ? "block" : "none";
-    nextBtn.textContent = step.buttonText;
+  u() {
+    if (!this.o) return;
+    let step = this.d[this.s];
+    this.o.querySelector(".title").textContent = this.t[step[0]];
+    let content = "";
+    for (let i = 0; i < step[2]; i++) {
+      content += this.t[step[1] + i] + "<br>";
+    }
+    this.o.querySelector(".content").innerHTML = content;
+    this.o.querySelector(".prev").style.display = this.s > 0 ? "block" : "none";
+    this.o.querySelector(".next").textContent = this.t[step[3]];
   }
 
-  nextStep() {
-    if (this.currentStep < this.totalSteps - 1) {
-      this.currentStep++;
-      this.updateContent();
+  next() {
+    if (this.s < 3) {
+      this.s++;
+      this.u();
     } else {
       this.hide();
-      // Start the game
-      if (this.game && this.game.start) {
-        this.game.start();
-      }
+      if (this.g && this.g.start) this.g.start();
     }
   }
 
-  previousStep() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
-      this.updateContent();
+  prev() {
+    if (this.s > 0) {
+      this.s--;
+      this.u();
     }
   }
 
-  // Check if tutorial should be shown automatically
   shouldShow() {
-    return !this.hasBeenShown;
-  }
-
-  // Reset tutorial (for testing or if user wants to see it again)
-  reset() {
-    localStorage.removeItem("atomicTutorialShown");
-    this.hasBeenShown = false;
+    return !this.h;
   }
 }
 
 
-// Simple input handling for mouse position
-class InputSystem {
-  constructor(canvas) {
-    this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+// Ultra-golfed orbital system for JS13K
+class O {
+  constructor(c, a) {
+    this.c = c;
+    this.l = 0;
+    this.s = 0;
+    this.t = 0;
+    this.T = 45;
+    this.a = a;
+    this.w = 0;
+    this.k = null;
+    this.tip = 0;
+    this.ts = 0;
 
-    canvas.addEventListener("mousemove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      this.mouse.x = e.clientX - rect.left;
-      this.mouse.y = e.clientY - rect.top;
-    });
-  }
-}
-
-
-// Simple atomic orbital system with progressive levels
-class OrbitalSystem {
-  constructor(canvas, audioSystem = null) {
-    this.canvas = canvas;
-    this.currentLevel = 0;
-    this.score = 0;
-    this.TAU = Math.PI * 2; // 2π constant for efficiency
-    this.time = 0;
-    this.levelTime = 45; // 45 seconds per level
-    this.audio = audioSystem; // Reference to audio system
-    this.timeWarningPlayed = false; // Track if time warning sound has been played
-    this.knockedOutElectron = null; // Track knocked-out electrons for respawning
-
-    // Orbital factory for consistent properties and smaller code
-    const G3 = Math.PI / 3,
-      G4 = Math.PI / 4,
-      G5 = Math.PI / 5,
-      G6 = Math.PI / 6,
-      Gsharp4 = Math.PI / 3.5, // G# orbital gap size
-      A4 = Math.PI / 4.5; // A orbital gap size
-
-    // Center coordinates for atomic structure
-    const CX = this.canvas.width / 2;
-    const CY = this.canvas.height / 2;
-
-    // Shell factory: (shell, position_angle, type, gap_size, rotation_speed)
-    const shell = (radius, angle, type, gap = G4, speed = 0.02) => ({
-      x: CX + Math.cos(angle) * radius,
-      y: CY + Math.sin(angle) * radius,
-      type,
-      speed,
-      gap,
-      radius: 20,
-      rotate: true,
-      shell: radius, // Track which shell this belongs to
-    });
-
-    // Proper Bohr model shell radii and configurations
-    // K shell (n=1): max 2 electrons, radius ~80px
-    // L shell (n=2): max 8 electrons, radius ~140px
-    // M shell (n=3): max 18 electrons, radius ~200px
-    const K_SHELL = 80; // First shell (1s orbital)
-    const L_SHELL = 140; // Second shell (2s, 2p orbitals)
-    const M_SHELL = 200; // Third shell (3s, 3p, 3d orbitals)
-
-    // Real atomic structures based on proper Bohr model
-    this.levels = [
-      {
-        name: "Hydrogen (H)",
-        element: "H",
-        atomicNumber: 1,
-        description: "1 electron in K shell (1s orbital)",
-        funFact:
-          "Hydrogen is the most abundant element in the universe! Each electron has an intrinsic quantum property called 'spin' - either spin-up (↑) or spin-down (↓).",
-        shells: [K_SHELL], // K shell only
-        orbitals: [
-          shell(K_SHELL, 0, "blue", G3, 0.025), // 1s¹ (spin-down)
+    // Compact level data with proper shell positioning
+    // [name,atomicNum,shells,orbitalData] - orbitalData: [x,y,radius,type,gap,speed,shellRadius]
+    let CX = 400,
+      CY = 300; // Center coordinates
+    this.L = [
+      ["Hydrogen", 1, [80], [[CX + 80, CY, 80, 0, 0.3, 0.02, 80]]],
+      [
+        "Helium",
+        2,
+        [80],
+        [
+          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
         ],
-      },
-      {
-        name: "Helium (He)",
-        element: "He",
-        atomicNumber: 2,
-        description: "2 electrons fill the K shell (1s orbital)",
-        funFact:
-          "Helium demonstrates the Pauli Exclusion Principle - each orbital can hold exactly 2 electrons, but they must have opposite spins (↑↓)!",
-        shells: [K_SHELL], // K shell only
-        orbitals: [
-          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
-          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+      ],
+      [
+        "Lithium",
+        3,
+        [80, 140],
+        [
+          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
         ],
-      },
-      {
-        name: "Lithium (Li)",
-        element: "Li",
-        atomicNumber: 3,
-        description: "K shell filled (2e⁻), 1 electron in L shell",
-        funFact:
-          "Lithium's 3rd electron goes into the L shell because the K shell is full with its spin-paired electrons (↑↓)!",
-        shells: [K_SHELL, L_SHELL], // K and L shells
-        orbitals: [
-          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
-          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
-          shell(L_SHELL, 0, "orange", Gsharp4, 0.022), // 2s¹ (spin-up)
+      ],
+      [
+        "Carbon",
+        6,
+        [80, 140],
+        [
+          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
+          [CX - 140, CY, 140, 0, 0.25, 0.022, 140],
+          [CX, CY + 140, 140, 1, 0.25, 0.022, 140],
+          [CX, CY - 140, 140, 1, 0.25, 0.022, 140],
         ],
-      },
-      {
-        name: "Carbon (C)",
-        element: "C",
-        atomicNumber: 6,
-        description: "K shell: 2e⁻, L shell: 4e⁻ (2s² 2p²)",
-        funFact:
-          "Carbon's 2p electrons follow Hund's Rule - they occupy separate orbitals with parallel spins (↑ ↑) before pairing up!",
-        shells: [K_SHELL, L_SHELL], // K and L shells
-        orbitals: [
-          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
-          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
-          shell(L_SHELL, 0, "blue", Gsharp4, 0.02), // 2s¹ (spin-down)
-          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.02), // 2s² (spin-up)
-          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.02), // 2p¹ (spin-up)
-          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.02), // 2p² (spin-up)
+      ],
+      [
+        "Nitrogen",
+        7,
+        [80, 140],
+        [
+          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
+          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
+          [CX - 140, CY, 140, 0, 0.25, 0.022, 140],
+          [CX, CY + 140, 140, 1, 0.25, 0.022, 140],
+          [CX, CY - 140, 140, 1, 0.25, 0.022, 140],
+          [CX + 99, CY + 99, 140, 1, 0.25, 0.022, 140],
         ],
-      },
-      {
-        name: "Nitrogen (N)",
-        element: "N",
-        atomicNumber: 7,
-        description: "K shell: 2e⁻, L shell: 5e⁻ (2s² 2p³)",
-        funFact:
-          "Nitrogen has maximum unpaired electrons in its 2p orbitals (↑ ↑ ↑), making it very stable and unreactive!",
-        shells: [K_SHELL, L_SHELL], // K and L shells
-        orbitals: [
-          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
-          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
-          shell(L_SHELL, 0, "blue", Gsharp4, 0.022), // 2s¹ (spin-down)
-          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.022), // 2s² (spin-up)
-          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.022), // 2p¹ (spin-up)
-          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.022), // 2p² (spin-up)
-          shell(L_SHELL, Math.PI / 4, "orange", A4, 0.022), // 2p³ (spin-up)
-        ],
-      },
+      ],
     ];
 
-    this.showingTip = false;
-    this.tipStartTime = 0;
-    this.resetLevel();
+    // Facts compressed - with line breaks for better display
+    this.F = [
+      "Simplest atom - just 1 proton\nand 1 electron",
+      "Noble gas - completely filled\nelectron shell",
+      "Alkali metal - very reactive\ndue to single outer electron",
+      "Forms 4 bonds - basis of\nall organic chemistry",
+      "Essential for proteins\nand DNA",
+    ];
+
+    this.r();
   }
 
-  resetLevel() {
-    this.orbitals = this.levels[this.currentLevel].orbitals.map((o) => ({
-      x: o.x,
-      y: o.y,
-      radius: o.radius,
-      type: o.type,
-      occupied: false,
-      rotate: o.rotate,
-      speed: o.speed,
-      gap: o.gap,
-      angle: 0,
-      electronAngle: 0, // Angle for electron orbiting around the orbital edge
-      stunned: false,
-      stunnedTime: 0,
-      hitCount: 0,
-      shaking: false,
-      shakeTime: 0,
-      shakeOffsetX: 0,
-      shakeOffsetY: 0,
-    }));
-    this.time = 0;
-    this.timeWarningPlayed = false; // Reset time warning for new level
-    this.knockedOutElectron = null; // Reset knocked-out electron tracking
+  setMouse(x, y) {
+    this.m = { x, y };
   }
 
-  checkCompletion() {
-    return this.orbitals.every((o) => o.occupied);
+  r() {
+    let lvl = this.L[this.l];
+    this.o = [];
+    for (let i = 0; i < lvl[3].length; i++) {
+      let d = lvl[3][i];
+      this.o.push({
+        x: d[0],
+        y: d[1],
+        r: d[2],
+        type: d[3],
+        gap: d[4],
+        speed: d[5],
+        shellR: d[6] || d[2], // Shell radius for drawing
+        angle: Math.random() * 6.28,
+        occupied: 0,
+        stunned: 0,
+        eAngle: 0,
+        baseSpeed: d[5], // Store original speed for capture cone
+        inCone: 0, // For capture assistance
+      });
+    }
+    this.t = 0;
+    this.w = 0;
   }
 
   update() {
-    const M = Math; // Shorter reference
-    this.time += 1 / 60; // Assuming 60fps
+    this.t += 1 / 60;
+    for (let orb of this.o) {
+      // Speed management for orange orbs
+      if (orb.type === 1 && !orb.occupied) {
+        // Impulse tap mechanic - slow down when mouse is near
+        let mouseX = this.m?.x || 0;
+        let mouseY = this.m?.y || 0;
+        let dx = mouseX - orb.x;
+        let dy = mouseY - orb.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Check for knocked-out electron respawning
-    if (
-      this.knockedOutElectron &&
-      this.time >= this.knockedOutElectron.spawnTime
-    ) {
-      // Notify game to spawn a new electron
-      try {
-        if (window.game && typeof window.game.respawnElectron === "function") {
-          window.game.respawnElectron(this.knockedOutElectron.type);
+        if (dist < 80) {
+          // Create capture cone effect
+          orb.inCone = Math.max(0.5, orb.inCone);
+          orb.speed = orb.baseSpeed * 0.3; // 70% slower
         } else {
-          console.warn(
-            "Game respawnElectron method not available, spawning manually"
-          );
-          // Fallback: create electron manually if game method fails
-          if (window.game && window.game.electrons) {
-            const newElectron = new Electron(
-              Math.random() * (this.canvas.width - 200) + 100,
-              Math.random() * (this.canvas.height - 200) + 100,
-              this.knockedOutElectron.type,
-              this.audio
-            );
-            newElectron.vx = (Math.random() - 0.5) * 3;
-            newElectron.vy = (Math.random() - 0.5) * 3;
-            window.game.electrons.push(newElectron);
-          }
-        }
-      } catch (error) {
-        console.error("Error respawning electron:", error);
-      }
-      this.knockedOutElectron = null; // Clear the respawn request
-    }
-
-    // Auto-hide educational tip after 4 seconds
-    if (this.showingTip && this.time - this.tipStartTime > 4) {
-      this.showingTip = false;
-    }
-
-    // Update rotating orbitals
-    for (let orbital of this.orbitals) {
-      if (orbital.rotate) {
-        orbital.angle += orbital.speed;
-      }
-
-      // Update electron orbiting motion for occupied orbitals
-      if (orbital.occupied) {
-        orbital.electronAngle += orbital.speed * 3; // Electrons orbit faster than gap rotation
-      }
-
-      // Update stunned orbitals
-      if (orbital.stunned) {
-        orbital.stunnedTime -= 1 / 60;
-        if (orbital.stunnedTime <= 0) {
-          orbital.stunned = false;
+          orb.inCone = Math.max(0, orb.inCone - 0.02);
+          orb.speed = orb.baseSpeed * (0.3 + 0.7 * (1 - orb.inCone));
         }
       }
 
-      // Update shaking orbitals
-      if (orbital.shaking) {
-        orbital.shakeTime -= 1 / 60;
-        if (orbital.shakeTime <= 0) {
-          orbital.shaking = false;
-          orbital.shakeOffsetX = 0;
-          orbital.shakeOffsetY = 0;
-        } else {
-          // Generate random shake offset
-          let intensity = orbital.shakeTime * 8; // Fade out over time
-          orbital.shakeOffsetX = (M.random() - 0.5) * intensity;
-          orbital.shakeOffsetY = (M.random() - 0.5) * intensity;
-        }
-      }
+      orb.angle += orb.speed;
+      if (orb.occupied) orb.eAngle += 0.05;
+      if (orb.stunned > 0) orb.stunned -= 1 / 60;
     }
+    if (this.tip && this.t - this.ts > 4) this.tip = 0;
   }
 
-  // Check if electron can enter orbital gap
-  canEnterOrbital(orbital, electronX, electronY) {
-    if (orbital.stunned) return false; // Stunned orbitals can't accept electrons
-    if (!orbital.rotate) return true; // Non-rotating orbitals are always open
-
-    let dx = electronX - orbital.x,
-      dy = electronY - orbital.y;
-    let electronAngle = Math.atan2(dy, dx);
-
-    // Normalize angles to 0-2π range
-    let normalizedElectronAngle = (electronAngle + this.TAU) % this.TAU;
-    let normalizedOrbitalAngle = (orbital.angle + this.TAU) % this.TAU;
-
-    // Calculate the relative angle between electron and orbital gap
-    let relativeAngle =
-      (normalizedElectronAngle - normalizedOrbitalAngle + this.TAU) % this.TAU;
-
-    // Check if electron is within the gap (more precise detection)
-    let halfGap = orbital.gap / 2;
-    return relativeAngle <= halfGap || relativeAngle >= this.TAU - halfGap;
+  checkComplete() {
+    return this.o.filter((o) => o.occupied).length === this.o.length;
   }
 
-  // Stun an orbital when wrong-color electron hits it
-  stunOrbital(orbital) {
-    orbital.stunned = true;
-    orbital.stunnedTime = 3; // 3 seconds stun duration
+  canEnter(orb, x, y) {
+    if (orb.occupied || orb.stunned > 0.1) return 0;
+    let dx = x - orb.x,
+      dy = y - orb.y,
+      dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Play stun sound
-    if (this.audio) {
-      this.audio.playOrbitalStun();
-    }
+    // Collision should be with the 20px orbital ring, not the shell
+    let orbitalRadius = 20;
+    let maxDist = orb.type === 1 ? 25 : 22; // Orange orbs get slightly larger zone
+    let minDist = orb.type === 1 ? 15 : 18;
+
+    if (dist > maxDist || dist < minDist) return 0;
+
+    let angle = Math.atan2(dy, dx);
+    let diff = Math.abs(angle - orb.angle);
+    if (diff > Math.PI) diff = 6.28 - diff;
+
+    // Wider gap for orange orbs and capture assistance
+    let gapSize = orb.gap;
+    if (orb.type === 1) gapSize *= 1.4; // 40% wider for orange
+    if (orb.inCone > 0) gapSize *= 1.2; // 20% wider when in capture cone
+
+    return diff < gapSize / 2;
   }
 
-  // Handle hits on occupied orbitals
-  hitOccupiedOrbital(orbital) {
-    orbital.hitCount++;
-    orbital.shaking = true;
-    orbital.shakeTime = 0.5; // Shake for 0.5 seconds
+  stun(orb) {
+    orb.stunned = 2;
+    this.a?.p(4);
+  }
 
-    if (orbital.hitCount >= 2) {
-      // Knock out the electron
-      orbital.occupied = false;
-      orbital.hitCount = 0;
-      orbital.shaking = false;
-      orbital.shakeOffsetX = 0;
-      orbital.shakeOffsetY = 0;
-
-      // Store the knocked-out electron info for respawning
-      this.knockedOutElectron = {
-        type: orbital.type,
-        spawnTime: this.time + 0.5, // Spawn after half a second
-      };
-
-      return true; // Electron was knocked out
-    }
-    return false; // Electron still in orbital
+  hit(orb) {
+    orb.hits = (orb.hits || 0) + 1;
+    if (orb.hits >= 2) {
+      orb.occupied = 0;
+      orb.hits = 0;
+      this.k = { type: orb.type, time: this.t };
+      this.a?.p(2);
+    } else this.a?.p(3);
   }
 
   nextLevel() {
-    if (this.checkCompletion()) {
-      this.score += (this.currentLevel + 1) * 100;
-
-      // Show educational tip
-      this.showingTip = true;
-      this.tipStartTime = this.time;
-
-      this.currentLevel++;
-      if (this.currentLevel >= this.levels.length) {
-        this.currentLevel = 0; // Loop back
-      }
-      this.resetLevel();
-      return true;
+    if (this.checkComplete()) {
+      this.s += (this.l + 1) * 100;
+      this.tip = 1;
+      this.ts = this.t;
+      this.l++;
+      if (this.l >= this.L.length) this.l = 0;
+      this.r();
+      return 1;
     }
-    return false;
-  }
-
-  // Close educational tip
-  closeTip() {
-    this.showingTip = false;
+    return 0;
   }
 
   draw(ctx) {
-    // Color helpers for smaller code
-    const colors = {
-      blue: ["rgba(100,150,255,", "rgb(100,150,255)", "rgb(80,120,200)"],
-      orange: ["rgba(255,150,100,", "rgb(255,150,100)", "rgb(200,120,80)"],
-      grey: "rgb(128,128,128)",
-    };
+    // Colors: [blue,orange]
+    let colors = [
+      ["rgba(100,150,255,", "rgb(100,150,255)"],
+      ["rgba(255,150,100,", "rgb(255,150,100)"],
+    ];
+    let lvl = this.L[this.l];
+    let CX = this.c.width / 2,
+      CY = this.c.height / 2;
 
-    const level = this.levels[this.currentLevel];
-    const CX = this.canvas.width / 2;
-    const CY = this.canvas.height / 2;
-
-    // Draw nucleus at center
+    // Shell outlines
+    let shells = new Set();
+    for (let orb of this.o) {
+      shells.add(orb.shellR);
+    }
     ctx.save();
-    ctx.shadowColor = "rgba(255, 255, 100, 0.8)";
-    ctx.shadowBlur = 15;
-
-    let nucleusGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 15);
-    nucleusGrad.addColorStop(0, "rgb(255, 255, 150)");
-    nucleusGrad.addColorStop(0.7, "rgb(255, 200, 100)");
-    nucleusGrad.addColorStop(1, "rgb(200, 150, 50)");
-
-    ctx.fillStyle = nucleusGrad;
-    ctx.beginPath();
-    ctx.arc(CX, CY, 12, 0, this.TAU);
-    ctx.fill();
-
-    // Nucleus label
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgb(50, 50, 50)";
-    ctx.font = "10px 'Courier New', monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(level.element, CX, CY + 3);
-    ctx.textAlign = "left";
+    ctx.strokeStyle = "rgba(100,150,200,.3)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    for (let r of shells) {
+      ctx.beginPath();
+      ctx.arc(CX, CY, r, 0, 6.28);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.restore();
 
-    // Draw electron shells as concentric circles around nucleus
-    const centerX = this.canvas.width / 2;
-    const centerY = this.canvas.height / 2;
+    // Nucleus
+    ctx.save();
+    ctx.shadowColor = "rgba(255,255,100,.8)";
+    ctx.shadowBlur = 15;
+    let grad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 15);
+    grad.addColorStop(0, "rgb(255,255,150)");
+    grad.addColorStop(1, "rgb(200,150,50)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(CX, CY, 12, 0, 6.28);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgb(50,50,50)";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(lvl[0].charAt(0), CX, CY + 3);
+    ctx.restore();
 
-    // Draw visible shell rings for the current element
-    const levelData = this.levels[this.currentLevel];
-    if (levelData.shells) {
-      for (let shellRadius of levelData.shells) {
+    // Orbitals
+    for (let orb of this.o) {
+      ctx.save();
+      let c = colors[orb.type];
+      let stunned = orb.stunned > 0.1;
+
+      // Capture cone for orange orbs
+      if (orb.type === 1 && orb.inCone > 0.1 && !orb.occupied) {
         ctx.save();
-        ctx.strokeStyle = "rgba(100, 150, 255, 0.25)";
+        ctx.strokeStyle = `rgba(255,150,100,${orb.inCone * 0.4})`;
         ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
         ctx.beginPath();
-        ctx.arc(centerX, centerY, shellRadius, 0, this.TAU);
+        ctx.arc(orb.x, orb.y, 80, 0, 6.28);
         ctx.stroke();
-        ctx.setLineDash([]);
         ctx.restore();
       }
-    }
 
-    // Draw orbital targets on each shell
-    for (let orbital of this.orbitals) {
-      ctx.save();
-
-      let c = colors[orbital.type] || colors.grey;
-      let occ = orbital.occupied;
-      let stunned = orbital.stunned;
-
-      // Draw orbital boundary (always visible as outline)
-      const orbitalRadius = 20; // Larger, more visible orbital size
-
-      // Orbital outline ring - colored based on orbital type
-      if (occ) {
-        // Occupied orbitals keep the faint colored outline
-        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.4)" : c[0] + "0.4)";
-      } else {
-        // Empty orbitals have a more visible colored outline to show which electron type is needed
-        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.6)" : c[0] + "0.7)";
-      }
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
+      // Orbital ring with enhanced capture zone for orange
+      let ringOpacity = orb.type === 1 && orb.inCone > 0.1 ? 0.9 : 0.7;
+      ctx.strokeStyle = stunned
+        ? "rgba(120,120,120,.6)"
+        : c[0] + `${ringOpacity})`;
+      ctx.lineWidth = orb.type === 1 && orb.inCone > 0.1 ? 3 : 2;
       ctx.beginPath();
-      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
+      ctx.arc(orb.x, orb.y, 20, 0, 6.28);
       ctx.stroke();
 
-      // Subtle orbital field background
-      let fieldGrad = ctx.createRadialGradient(
-        orbital.x,
-        orbital.y,
-        0,
-        orbital.x,
-        orbital.y,
-        orbitalRadius
-      );
-      fieldGrad.addColorStop(
-        0,
-        stunned ? "rgba(100,100,100,0.05)" : c[0] + "0.05)"
-      );
-      fieldGrad.addColorStop(1, "rgba(0,0,0,0)");
-
-      ctx.fillStyle = fieldGrad;
-      ctx.beginPath();
-      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
-      ctx.fill();
-
-      if (occ) {
-        // Occupied orbital - electron orbiting around the edge
-        const electronOrbitRadius = orbitalRadius - 2; // Slightly inside the orbital boundary
-
-        // Calculate electron position
-        let electronX =
-          orbital.x + Math.cos(orbital.electronAngle) * electronOrbitRadius;
-        let electronY =
-          orbital.y + Math.sin(orbital.electronAngle) * electronOrbitRadius;
-
-        // Apply shake offset to the entire orbital system
-        electronX += orbital.shakeOffsetX;
-        electronY += orbital.shakeOffsetY;
-
-        // Draw orbiting electron
-        ctx.shadowColor = c[0] + "0.8)";
-        ctx.shadowBlur = 8;
-
-        let grad = ctx.createRadialGradient(
-          electronX,
-          electronY,
-          0,
-          electronX,
-          electronY,
-          6
-        );
-        grad.addColorStop(0, "white");
-        grad.addColorStop(0.4, c[1]);
-        grad.addColorStop(1, c[2]);
-
-        ctx.fillStyle = grad;
+      if (orb.occupied) {
+        // Electron orbiting
+        let ex = orb.x + Math.cos(orb.eAngle) * 18;
+        let ey = orb.y + Math.sin(orb.eAngle) * 18;
+        let eGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, 8);
+        eGrad.addColorStop(0, c[1]);
+        eGrad.addColorStop(1, c[1].replace("rgb", "rgba").replace(")", ",0)"));
+        ctx.fillStyle = eGrad;
         ctx.beginPath();
-        ctx.arc(electronX, electronY, 6, 0, this.TAU);
+        ctx.arc(ex, ey, 8, 0, 6.28);
         ctx.fill();
-
-        // Optional: Draw faint orbital trail
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = c[0] + "0.2)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 2]);
-        ctx.beginPath();
-        ctx.arc(orbital.x, orbital.y, electronOrbitRadius, 0, this.TAU);
-        ctx.stroke();
-        ctx.setLineDash([]);
       } else {
-        // Available orbital - show rotating entry gap
-        ctx.translate(orbital.x, orbital.y);
-        ctx.rotate(orbital.angle);
-
-        // Entry gap in the orbital ring
+        // Entry gap
+        ctx.translate(orb.x, orb.y);
+        ctx.rotate(orb.angle);
         ctx.strokeStyle = stunned
-          ? "rgba(200,200,200,0.8)"
-          : c[1].replace("rgb", "rgba").replace(")", ",0.9)");
+          ? "rgba(200,200,200,.8)"
+          : c[1].replace("rgb", "rgba").replace(")", ".9)");
         ctx.lineWidth = 3;
         ctx.beginPath();
-        let g = orbital.gap / 2;
-        ctx.arc(0, 0, orbitalRadius, g, this.TAU - g);
+        let g = orb.gap / 2;
+        ctx.arc(0, 0, 20, g, 6.28 - g);
         ctx.stroke();
 
-        // Entry gap indicators (pointing inward)
+        // Gap indicators
         ctx.strokeStyle = stunned
-          ? "rgba(160,160,160,0.9)"
-          : c[1].replace("rgb", "rgba").replace(")", ",0.8)");
+          ? "rgba(160,160,160,.9)"
+          : c[1].replace("rgb", "rgba").replace(")", ".8)");
         ctx.lineWidth = 2;
-
         ctx.beginPath();
-        ctx.moveTo(orbitalRadius * Math.cos(g), orbitalRadius * Math.sin(g));
-        ctx.lineTo(
-          (orbitalRadius - 6) * Math.cos(g),
-          (orbitalRadius - 6) * Math.sin(g)
-        );
-        ctx.moveTo(orbitalRadius * Math.cos(-g), orbitalRadius * Math.sin(-g));
-        ctx.lineTo(
-          (orbitalRadius - 6) * Math.cos(-g),
-          (orbitalRadius - 6) * Math.sin(-g)
-        );
+        ctx.moveTo(20 * Math.cos(g), 20 * Math.sin(g));
+        ctx.lineTo(14 * Math.cos(g), 14 * Math.sin(g));
+        ctx.moveTo(20 * Math.cos(-g), 20 * Math.sin(-g));
+        ctx.lineTo(14 * Math.cos(-g), 14 * Math.sin(-g));
         ctx.stroke();
 
-        // Center indicator dot
-        let pulse = 0.3 + 0.3 * Math.sin(this.time * 2.5);
+        // Center dot
+        let pulse = 0.3 + 0.3 * Math.sin(this.t * 2.5);
         ctx.fillStyle = stunned
           ? `rgba(140,140,140,${pulse})`
           : c[0] + `${pulse})`;
         ctx.beginPath();
-        ctx.arc(0, 0, 3, 0, this.TAU);
+        ctx.arc(0, 0, 3, 0, 6.28);
         ctx.fill();
       }
-
       ctx.restore();
     }
 
-    // UI Constants
-    const F16 = "16px Arial";
-    const F18 = "18px 'Courier New', monospace";
-    const F12 = "12px Arial";
-    const WHITE = "white";
-    const CYAN = "rgb(0, 255, 255)";
-    const YELLOW = "rgb(255, 255, 100)";
+    // UI
+    ctx.fillStyle = "white";
+    ctx.font = "18px monospace";
+    ctx.fillText(lvl[0], 20, 30);
 
-    const currentLevel = this.levels[this.currentLevel];
-
-    // Element name and atomic number
-    ctx.fillStyle = WHITE;
-    ctx.font = F18;
-    ctx.fillText(`${currentLevel.name}`, 20, 30);
-
-    // Atomic number in a styled box
-    ctx.save();
-    ctx.fillStyle = "rgba(100, 150, 255, 0.2)";
+    // Atomic number box
+    ctx.fillStyle = "rgba(100,150,255,.2)";
     ctx.fillRect(200, 10, 40, 30);
-    ctx.strokeStyle = "rgb(100, 150, 255)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgb(100,150,255)";
     ctx.strokeRect(200, 10, 40, 30);
-
-    ctx.fillStyle = CYAN;
-    ctx.font = "14px 'Courier New', monospace";
+    ctx.fillStyle = "rgb(0,255,255)";
+    ctx.font = "14px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(currentLevel.atomicNumber.toString(), 220, 30);
+    ctx.fillText(lvl[1], 220, 30);
     ctx.textAlign = "left";
-    ctx.restore();
 
-    // Score text with muted styling like element name
-    ctx.fillStyle = WHITE;
-    ctx.font = F18;
-    ctx.fillText(`SCORE: ${this.score}`, 20, 55);
-
-    ctx.fillStyle = WHITE;
-    ctx.font = F18;
+    ctx.fillStyle = "white";
+    ctx.font = "18px monospace";
+    ctx.fillText(`SCORE: ${this.s}`, 20, 55);
     ctx.fillText(
-      `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
-        this.orbitals.length
-      }`,
+      `Electrons: ${this.o.filter((o) => o.occupied).length}/${this.o.length}`,
       20,
       75
     );
 
-    // Timer display
-    let timeLeft = Math.max(0, this.levelTime - this.time);
+    let timeLeft = Math.max(0, this.T - this.t);
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
     ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 95);
 
-    // Play time warning sound when 10 seconds left (only once per level)
-    if (
-      timeLeft <= 10 &&
-      timeLeft > 0 &&
-      !this.timeWarningPlayed &&
-      this.audio
-    ) {
-      this.audio.playTimeWarning();
-      this.timeWarningPlayed = true;
+    if (timeLeft <= 10 && timeLeft > 0 && !this.w && this.a) {
+      this.a.p(6);
+      this.w = 1;
     }
 
-    if (this.checkCompletion()) {
+    // Completion check
+    if (this.checkComplete()) {
       ctx.save();
+      // Modal background
+      ctx.fillStyle = "rgba(0,0,0,.8)";
+      ctx.fillRect(0, 0, this.c.width, this.c.height);
 
-      // Center the completion text
+      // Modal box
+      let boxW = 400,
+        boxH = 120;
+      let boxX = (this.c.width - boxW) / 2,
+        boxY = (this.c.height - boxH) / 2;
+
+      ctx.fillStyle = "rgba(20,30,50,.95)";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = "rgb(255,255,100)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      // Content
       ctx.textAlign = "center";
-      ctx.font = "32px 'Courier New', monospace";
+      ctx.font = "24px monospace";
+      ctx.shadowColor = "rgb(255,255,0)";
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = "rgb(255,255,100)";
+      ctx.fillText("LEVEL COMPLETE!", this.c.width / 2, boxY + 45);
 
-      // Multiple glow layers for enhanced effect
-      ctx.shadowColor = "rgb(255, 255, 0)";
-      ctx.shadowBlur = 20;
-      ctx.fillStyle = "rgb(255, 255, 0)";
-      ctx.fillText("LEVEL COMPLETE", this.canvas.width / 2, 150);
-
-      // Secondary glow
-      ctx.shadowColor = "rgb(255, 200, 0)";
-      ctx.shadowBlur = 30;
-      ctx.fillStyle = "rgb(255, 255, 200)";
-      ctx.fillText("LEVEL COMPLETE", this.canvas.width / 2, 150);
-
-      // Smaller instruction text
-      ctx.font = "18px 'Courier New', monospace";
-      ctx.shadowColor = "rgb(0, 255, 255)";
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = "rgb(0, 255, 255)";
-      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", this.canvas.width / 2, 180);
-
+      ctx.font = "16px monospace";
+      ctx.shadowColor = "rgb(0,255,255)";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "rgb(100,200,255)";
+      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", this.c.width / 2, boxY + 75);
       ctx.restore();
     } else if (timeLeft <= 0) {
       ctx.save();
+      // Modal background
+      ctx.fillStyle = "rgba(0,0,0,.8)";
+      ctx.fillRect(0, 0, this.c.width, this.c.height);
+
+      // Modal box
+      let boxW = 400,
+        boxH = 100;
+      let boxX = (this.c.width - boxW) / 2,
+        boxY = (this.c.height - boxH) / 2;
+
+      ctx.fillStyle = "rgba(50,20,20,.95)";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = "rgb(255,100,100)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      // Content
       ctx.textAlign = "center";
-      ctx.font = "24px 'Courier New', monospace";
-      ctx.shadowColor = "rgb(255, 100, 100)";
+      ctx.font = "20px monospace";
+      ctx.shadowColor = "rgb(255,100,100)";
       ctx.shadowBlur = 15;
-      ctx.fillStyle = "rgb(255, 100, 100)";
-      ctx.fillText("TIME'S UP! CLICK TO RETRY", this.canvas.width / 2, 150);
+      ctx.fillStyle = "rgb(255,150,150)";
+      ctx.fillText("TIME'S UP! CLICK TO RETRY", this.c.width / 2, boxY + 60);
       ctx.restore();
     }
 
-    // Educational tip overlay
-    if (this.showingTip) {
-      const prevLevel =
-        this.currentLevel === 0
-          ? this.levels.length - 1
-          : this.currentLevel - 1;
-      const completedLevel = this.levels[prevLevel];
-
-      // Semi-transparent overlay
+    // Educational tip
+    if (this.tip) {
       ctx.save();
-      ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.fillStyle = "rgba(0,0,0,.8)";
+      ctx.fillRect(0, 0, this.c.width, this.c.height);
 
-      // Educational tip box
-      const boxWidth = 500;
-      const boxHeight = 200;
-      const boxX = (this.canvas.width - boxWidth) / 2;
-      const boxY = (this.canvas.height - boxHeight) / 2;
+      let boxW = 400,
+        boxH = 170; // Increased height for multi-line text
+      let boxX = (this.c.width - boxW) / 2,
+        boxY = (this.c.height - boxH) / 2;
 
-      // Tip box background
-      ctx.fillStyle = "rgba(20, 30, 50, 0.95)";
-      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-      // Tip box border
-      ctx.strokeStyle = "rgb(100, 150, 255)";
+      ctx.fillStyle = "rgba(20,30,50,.95)";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = "rgb(100,150,255)";
       ctx.lineWidth = 2;
-      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
 
       ctx.textAlign = "center";
+      ctx.fillStyle = "rgb(255,255,100)";
+      ctx.font = "20px monospace";
+      ctx.fillText("ELEMENT BUILT!", this.c.width / 2, boxY + 35);
 
-      // Congratulations header
-      ctx.fillStyle = "rgb(255, 255, 100)";
-      ctx.font = "24px 'Courier New', monospace";
-      ctx.fillText("ELEMENT BUILT!", this.canvas.width / 2, boxY + 40);
+      let prevIdx = this.l === 0 ? this.L.length - 1 : this.l - 1;
+      ctx.fillStyle = "rgb(100,200,255)";
+      ctx.font = "16px monospace";
+      ctx.fillText(this.L[prevIdx][0], this.c.width / 2, boxY + 60);
 
-      // Element details
-      ctx.fillStyle = "rgb(100, 200, 255)";
-      ctx.font = "20px 'Courier New', monospace";
+      // Handle multi-line text
+      ctx.fillStyle = "rgb(255,200,100)";
+      ctx.font = "14px monospace";
+      const lines = this.F[prevIdx].split('\n');
+      lines.forEach((line, i) => {
+        ctx.fillText(line, this.c.width / 2, boxY + 85 + i * 18);
+      });
+
+      ctx.fillStyle = "rgba(150,150,150,.8)";
+      ctx.font = "12px monospace";
       ctx.fillText(
-        `${completedLevel.name} (${completedLevel.element})`,
-        this.canvas.width / 2,
-        boxY + 70
-      );
-
-      ctx.fillStyle = "rgb(200, 200, 200)";
-      ctx.font = "16px Arial";
-      ctx.fillText(
-        `Atomic Number: ${completedLevel.atomicNumber}`,
-        this.canvas.width / 2,
-        boxY + 95
-      );
-
-      // Fun fact
-      ctx.fillStyle = "rgb(255, 200, 100)";
-      ctx.font = "14px Arial";
-
-      // Word wrap the fun fact
-      const words = completedLevel.funFact.split(" ");
-      let line = "";
-      let lineY = boxY + 125;
-
-      for (let word of words) {
-        const testLine = line + word + " ";
-        const metrics = ctx.measureText(testLine);
-
-        if (metrics.width > boxWidth - 40 && line !== "") {
-          ctx.fillText(line, this.canvas.width / 2, lineY);
-          line = word + " ";
-          lineY += 20;
-        } else {
-          line = testLine;
-        }
-      }
-      ctx.fillText(line, this.canvas.width / 2, lineY);
-
-      // Auto-close instruction
-      ctx.fillStyle = "rgba(150, 150, 150, 0.8)";
-      ctx.font = "12px Arial";
-      ctx.fillText(
-        "(Auto-closes in " +
-          Math.ceil(4 - (this.time - this.tipStartTime)) +
-          "s | Click anywhere or press ESC to close)",
-        this.canvas.width / 2,
-        boxY + boxHeight - 15
+        `(Auto-closes in ${Math.ceil(4 - (this.t - this.ts))}s)`,
+        this.c.width / 2,
+        boxY + 140
       );
 
       ctx.restore();
@@ -1522,791 +828,378 @@ class OrbitalSystem {
 }
 
 
-// Futuristic electronic audio system using Web Audio API
-class AudioSystem {
+// Ultra-golfed audio system for JS13K
+class A {
   constructor() {
-    this.audioContext = null;
-    this.masterGain = null;
-    this.backgroundMusic = null;
-    this.isInitialized = false;
-    this.isMuted = false;
-
-    // Audio settings
-    this.volume = 0.4;
-    this.musicVolume = 0.7; // Increased significantly to make music more audible
-    this.sfxVolume = 0.4;
+    this.c = null;
+    this.g = null;
+    this.muted = 0;
+    this.s = [];
   }
 
-  // Initialize audio context (must be called after user interaction)
-  async init() {
-    if (this.isInitialized) return;
+  async i() {
+    if (this.c) return;
+    this.c = new (AudioContext || webkitAudioContext)();
+    this.g = this.c.createGain();
+    this.g.gain.value = 0.3;
+    this.g.connect(this.c.destination);
 
-    try {
-      this.audioContext = new (window.AudioContext ||
-        window.webkitAudioContext)();
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
-      this.masterGain.gain.value = this.volume;
+    // Create echo bus for spatial effect
+    this.delay = this.c.createDelay(0.5);
+    this.delay.delayTime.value = 0.15;
+    this.feedback = this.c.createGain();
+    this.feedback.gain.value = 0.25;
+    this.delay.connect(this.feedback);
+    this.feedback.connect(this.delay);
+    this.delay.connect(this.g);
 
-      this.isInitialized = true;
-      console.log("Audio system initialized");
+    // Create all SFX buffers - fast attacks, bell-like releases
+    this.s = [
+      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // 0: collision
+      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // 1: capture
+      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // 2: knocked out
+      this.b([3, 207, 0.3, 0.35, 0.002, 0.2]), // 3: wrong electron
+      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // 4: orbital stun
+      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // 5: UI hover
+      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // 6: time warning
+      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // 7: level complete
+      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // 8: twinkle for captures
+    ];
+  }
 
-      // Start ambient background music
-      this.startBackgroundMusic();
-    } catch (error) {
-      console.warn("Audio initialization failed:", error);
+  // Create buffer from params [wave,freq,dur,vol,attack,release]
+  b(p) {
+    const l = this.c.sampleRate * p[2];
+    const buf = this.c.createBuffer(1, l, this.c.sampleRate);
+    const d = buf.getChannelData(0);
+    const a = p[4] * this.c.sampleRate;
+    const r = (p[2] - p[5]) * this.c.sampleRate;
+
+    for (let i = 0; i < l; i++) {
+      let v;
+      if (p[0] == 1)
+        v = Math.sin((i * p[1] * 6.28) / this.c.sampleRate); // sine
+      else if (p[0] == 2) v = Math.random() * 2 - 1; // noise
+      else v = (((i * p[1] * 4) / this.c.sampleRate) % 2) - 1; // sawtooth
+
+      let e = 1;
+      if (i < a) e = i / a;
+      else if (i > r) e = (l - i) / (l - r);
+
+      d[i] = v * e * p[3];
+    }
+    return buf;
+  }
+
+  // Play SFX by index with optional echo
+  p(i, v = 1, echo = false) {
+    if (!this.c || this.muted) return;
+    const s = this.c.createBufferSource();
+    const g = this.c.createGain();
+    s.buffer = this.s[i];
+    g.gain.value = v;
+    s.connect(g);
+    g.connect(this.g);
+    if (echo && this.delay) g.connect(this.delay);
+    s.start();
+
+    // Add twinkle for successful captures
+    if (i === 1) {
+      setTimeout(() => this.p(8, 0.6, true), 100);
     }
   }
 
-  // Generate ethereal, celestial ambient background music (Celeste-inspired)
-  startBackgroundMusic() {
-    if (!this.isInitialized || this.backgroundMusic) return;
+  // Start ambient music - gentle musical progression
+  m() {
+    if (!this.c) return;
 
-    const musicGain = this.audioContext.createGain();
-    musicGain.connect(this.masterGain);
-    musicGain.gain.value = this.musicVolume;
-
-    // Ethereal celestial chord progression - dreamy, floating feeling
-    // Using extended chords with 7ths and 9ths for that spacey, atmospheric sound
-    const celestialChords = [
-      [130.81, 164.81, 196.0, 246.94, 293.66], // Cmaj9 - floating, open
-      [146.83, 184.997, 220.0, 277.18, 329.63], // Dmaj9 - lifted, bright
-      [164.81, 207.65, 246.94, 311.13, 369.99], // Emaj7 - warm, enveloping
-      [174.61, 220.0, 261.63, 329.63, 392.0],   // Fmaj9 - grounded yet ethereal
+    // Chord progression: Am - F - C - G (vi-IV-I-V in C major)
+    const chords = [
+      [220, 264, 330], // Am (A-C-E)
+      [175, 220, 262], // F (F-A-C)
+      [196, 247, 294], // C (C-E-G)
+      [196, 247, 294], // G (G-B-D) - simplified to fit
     ];
 
-    // Create ethereal pad layer with slow-moving chords
-    this.createEtherealPads(celestialChords, musicGain);
-    
-    // Create twinkling star-like arpeggios
-    this.createTwinklingLayer(musicGain);
-    
-    // Create ambient echo/reverb layer
-    this.createAmbientEchoLayer(musicGain);
-
-    this.backgroundMusic = { musicGain, chords: celestialChords };
-    
-    console.log("Ethereal celestial background music started");
-  }
-
-  // Ethereal pad layer - slowly morphing chords
-  createEtherealPads(chords, musicGain) {
-    let currentChord = 0;
-    let nextChordTime = this.audioContext.currentTime;
-
-    const playEtherealChord = (frequencies, startTime, duration) => {
-      frequencies.forEach((freq, index) => {
-        const osc = this.audioContext.createOscillator();
-        const oscGain = this.audioContext.createGain();
-        const filter = this.audioContext.createBiquadFilter();
-
-        // Soft sawtooth waves for rich harmonics, filtered heavily
-        osc.type = "sawtooth";
-        osc.frequency.value = freq * 0.25; // Two octaves down for deep pad sound
-
-        // Heavy low-pass filtering for ethereal softness
-        filter.type = "lowpass";
-        filter.frequency.value = 400 + Math.sin(startTime * 0.2) * 100; // Slow filter sweep
-        filter.Q.value = 0.5;
-
-        // Very slow, breathing envelope
-        oscGain.gain.setValueAtTime(0, startTime);
-        oscGain.gain.linearRampToValueAtTime(0.08, startTime + 4); // 4 second fade in
-        oscGain.gain.setValueAtTime(0.08, startTime + duration - 4);
-        oscGain.gain.linearRampToValueAtTime(0, startTime + duration); // 4 second fade out
-
-        osc.connect(filter);
-        filter.connect(oscGain);
-        oscGain.connect(musicGain);
-
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-      });
-    };
-
-    const scheduleNextChord = () => {
-      const chordDuration = 12; // 12 seconds per chord for maximum ethereal effect
-      playEtherealChord(chords[currentChord], nextChordTime, chordDuration);
-
-      currentChord = (currentChord + 1) % chords.length;
-      nextChordTime += chordDuration;
-
-      setTimeout(() => scheduleNextChord(), (chordDuration - 2) * 1000);
-    };
-
-    scheduleNextChord();
-  }
-
-  // Twinkling star-like arpeggios
-  createTwinklingLayer(musicGain) {
-    const twinkleGain = this.audioContext.createGain();
-    twinkleGain.connect(musicGain);
-    twinkleGain.gain.value = 0.3;
-
-    // High frequencies for twinkling effect
-    const twinkleNotes = [
-      523.25, 587.33, 659.25, 698.46, 783.99, 880.0, 987.77, 1046.50, // C5-C6
-      1174.66, 1318.51, 1396.91, 1567.98 // Higher octave sparkles
+    const melodyNotes = [
+      440,
+      392,
+      349,
+      330,
+      294,
+      330,
+      349,
+      392, // Gentle descending phrase
+      440,
+      523,
+      494,
+      440,
+      392,
+      349,
+      330,
+      294, // Rise and fall
     ];
 
-    const createTwinkle = () => {
-      const osc = this.audioContext.createOscillator();
-      const oscGain = this.audioContext.createGain();
-      const filter = this.audioContext.createBiquadFilter();
+    let chordIndex = 0;
+    let melodyIndex = 0;
 
-      // Sine waves for pure, bell-like tones
-      osc.type = "sine";
-      osc.frequency.value = twinkleNotes[Math.floor(Math.random() * twinkleNotes.length)];
+    // Bass foundation (subtle)
+    const bass = this.c.createOscillator();
+    const bassGain = this.c.createGain();
+    bass.type = "sine";
+    bass.frequency.value = 110; // Low A
+    bassGain.gain.setValueAtTime(0, this.c.currentTime);
+    bassGain.gain.linearRampToValueAtTime(0.006, this.c.currentTime + 4);
+    bass.connect(bassGain);
+    bassGain.connect(this.g);
+    bass.start();
 
-      // High-pass filter for sparkly effect
-      filter.type = "highpass";
-      filter.frequency.value = 800;
-      filter.Q.value = 1;
+    // Chord pad (3 voices)
+    const chordOscs = [];
+    for (let i = 0; i < 3; i++) {
+      const osc = this.c.createOscillator();
+      const gain = this.c.createGain();
+      const filter = this.c.createBiquadFilter();
 
-      // Quick sparkle envelope
-      const now = this.audioContext.currentTime;
-      oscGain.gain.setValueAtTime(0, now);
-      oscGain.gain.linearRampToValueAtTime(0.15, now + 0.1);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 2 + Math.random() * 3);
+      osc.type = "triangle";
+      filter.type = "lowpass";
+      filter.frequency.value = 600;
+      filter.Q.value = 0.7;
+
+      gain.gain.setValueAtTime(0, this.c.currentTime);
+      gain.gain.linearRampToValueAtTime(0.008, this.c.currentTime + 3 + i);
 
       osc.connect(filter);
-      filter.connect(oscGain);
-      oscGain.connect(twinkleGain);
+      filter.connect(gain);
+      gain.connect(this.g);
+      osc.start();
 
-      osc.start(now);
-      osc.stop(now + 5);
-
-      // Schedule next twinkle randomly
-      setTimeout(() => createTwinkle(), 1000 + Math.random() * 4000);
-    };
-
-    // Start twinkling
-    createTwinkle();
-  }
-
-  // Ambient echo/reverb layer for spacey atmosphere
-  createAmbientEchoLayer(musicGain) {
-    const ambientGain = this.audioContext.createGain();
-    ambientGain.connect(musicGain);
-    ambientGain.gain.value = 0.2;
-
-    const createAmbientTone = () => {
-      const osc = this.audioContext.createOscillator();
-      const oscGain = this.audioContext.createGain();
-      const filter1 = this.audioContext.createBiquadFilter();
-      const filter2 = this.audioContext.createBiquadFilter();
-
-      // Very low frequency drone with filtered noise-like texture
-      osc.type = "triangle";
-      osc.frequency.value = 65.41 + Math.random() * 32; // Around C2, slightly detuned
-
-      // Double filtering for extra ethereal quality
-      filter1.type = "lowpass";
-      filter1.frequency.value = 200;
-      filter1.Q.value = 2;
-      
-      filter2.type = "highpass";
-      filter2.frequency.value = 80;
-      filter2.Q.value = 0.5;
-
-      // Very long, slow envelope
-      const now = this.audioContext.currentTime;
-      const duration = 20 + Math.random() * 15; // 20-35 second drones
-      
-      oscGain.gain.setValueAtTime(0, now);
-      oscGain.gain.linearRampToValueAtTime(0.05, now + 8); // 8 second fade in
-      oscGain.gain.setValueAtTime(0.05, now + duration - 8);
-      oscGain.gain.linearRampToValueAtTime(0, now + duration); // 8 second fade out
-
-      osc.connect(filter1);
-      filter1.connect(filter2);
-      filter2.connect(oscGain);
-      oscGain.connect(ambientGain);
-
-      osc.start(now);
-      osc.stop(now + duration);
-
-      // Schedule next ambient tone
-      setTimeout(() => createAmbientTone(), (duration - 10) * 1000);
-    };
-
-    // Start ambient layer
-    createAmbientTone();
-  }
-
-  // Ethereal electron capture sound - crystalline bells with echo
-  playElectronCapture() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.6;
-
-    // Ethereal crystal-like chime cascade - multiple octaves for richness
-    const frequencies = [
-      523.25, 659.25, 783.99, // C major triad
-      1046.50, 1318.51, 1567.98 // Same triad one octave higher for sparkle
-    ];
-
-    frequencies.forEach((freq, index) => {
-      const osc = this.audioContext.createOscillator();
-      const oscGain = this.audioContext.createGain();
-      const filter = this.audioContext.createBiquadFilter();
-
-      // Sine waves for pure, bell-like tones
-      osc.type = "sine";
-      osc.frequency.value = freq;
-
-      // High-Q filter for crystalline resonance
-      filter.type = "bandpass";
-      filter.frequency.value = freq * 1.2;
-      filter.Q.value = 8; // High Q for bell-like resonance
-
-      const startTime = this.audioContext.currentTime + index * 0.03; // Slight cascade timing
-
-      // Bell-like envelope with longer decay
-      oscGain.gain.setValueAtTime(0, startTime);
-      oscGain.gain.linearRampToValueAtTime(0.15, startTime + 0.01);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.5 + Math.random() * 0.5);
-
-      osc.connect(filter);
-      filter.connect(oscGain);
-      oscGain.connect(gain);
-
-      osc.start(startTime);
-      osc.stop(startTime + 2);
-    });
-  }
-
-  // Ethereal wrong electron feedback - gentle, floating dissonance
-  playWrongElectron() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-
-    // Gentle, floating dissonance that drifts away rather than harsh rejection
-    const osc1 = this.audioContext.createOscillator();
-    const osc2 = this.audioContext.createOscillator();
-    const filter1 = this.audioContext.createBiquadFilter();
-    const filter2 = this.audioContext.createBiquadFilter();
-
-    // Sine waves for ethereal quality
-    osc1.type = "sine";
-    osc2.type = "sine";
-    
-    // Start with a gentle interval, then drift apart
-    osc1.frequency.setValueAtTime(440, this.audioContext.currentTime); // A
-    osc1.frequency.exponentialRampToValueAtTime(392, this.audioContext.currentTime + 1.2); // drift to G
-    
-    osc2.frequency.setValueAtTime(466.16, this.audioContext.currentTime); // A# (slight dissonance)
-    osc2.frequency.exponentialRampToValueAtTime(349.23, this.audioContext.currentTime + 1.2); // drift to F
-
-    // Heavy filtering for dreaminess
-    filter1.type = "lowpass";
-    filter1.frequency.value = 800;
-    filter1.Q.value = 2;
-    
-    filter2.type = "lowpass";
-    filter2.frequency.value = 600;
-    filter2.Q.value = 2;
-
-    const osc1Gain = this.audioContext.createGain();
-    const osc2Gain = this.audioContext.createGain();
-
-    osc1Gain.gain.value = 0.12;
-    osc2Gain.gain.value = 0.12;
-
-    osc1.connect(filter1);
-    filter1.connect(osc1Gain);
-    osc2.connect(filter2);
-    filter2.connect(osc2Gain);
-    osc1Gain.connect(gain);
-    osc2Gain.connect(gain);
-
-    // Floating, dreamy envelope
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(this.sfxVolume * 0.2, this.audioContext.currentTime + 0.2);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1.5);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(this.audioContext.currentTime + 1.5);
-    osc2.stop(this.audioContext.currentTime + 1.5);
-  }
-
-  // Level completion - celebratory but calm
-  playLevelComplete() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.8;
-
-    // Ascending arpeggio
-    const frequencies = [440, 554.37, 659.25, 880]; // A major chord progression
-
-    frequencies.forEach((freq, index) => {
-      const osc = this.audioContext.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-
-      const noteGain = this.audioContext.createGain();
-      noteGain.connect(gain);
-
-      const startTime = this.audioContext.currentTime + index * 0.1;
-      const duration = 0.4;
-
-      noteGain.gain.setValueAtTime(0, startTime);
-      noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-      osc.connect(noteGain);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    });
-  }
-
-  // Electron knocked out - gentle thud
-  playElectronKnockedOut() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-
-    // Low frequency thud with some harmonics
-    const osc1 = this.audioContext.createOscillator();
-    const osc2 = this.audioContext.createOscillator();
-
-    osc1.type = "sine";
-    osc1.frequency.value = 120;
-
-    osc2.type = "triangle";
-    osc2.frequency.value = 60;
-
-    const osc1Gain = this.audioContext.createGain();
-    const osc2Gain = this.audioContext.createGain();
-
-    osc1Gain.gain.value = 0.4;
-    osc2Gain.gain.value = 0.6;
-
-    osc1.connect(osc1Gain);
-    osc2.connect(osc2Gain);
-    osc1Gain.connect(gain);
-    osc2Gain.connect(gain);
-
-    // Quick thud envelope
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      this.sfxVolume * 0.5,
-      this.audioContext.currentTime + 0.01
-    );
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.audioContext.currentTime + 0.15
-    );
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(this.audioContext.currentTime + 0.15);
-    osc2.stop(this.audioContext.currentTime + 0.15);
-  }
-
-  // Orbital stun effect - electronic glitch
-  playOrbitalStun() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.3;
-
-    // Create a brief electronic glitch sound
-    const noise = this.audioContext.createBufferSource();
-    const buffer = this.audioContext.createBuffer(1, 4410, 44100); // 0.1 seconds
-    const data = buffer.getChannelData(0);
-
-    // Generate filtered noise
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 1000);
+      chordOscs.push({ osc, gain });
     }
 
-    noise.buffer = buffer;
+    // Melody voice
+    const melody = this.c.createOscillator();
+    const melodyGain = this.c.createGain();
+    const melodyFilter = this.c.createBiquadFilter();
 
-    const filter = this.audioContext.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 800;
-    filter.Q.value = 5;
+    melody.type = "sine";
+    melodyFilter.type = "lowpass";
+    melodyFilter.frequency.value = 1200;
+    melodyGain.gain.setValueAtTime(0, this.c.currentTime);
 
-    noise.connect(filter);
-    filter.connect(gain);
+    melody.connect(melodyFilter);
+    melodyFilter.connect(melodyGain);
+    melodyGain.connect(this.g);
+    if (this.delay) melodyGain.connect(this.delay);
+    melody.start();
 
-    noise.start();
-  }
+    // Chord progression (every 8 seconds)
+    const changeChord = () => {
+      const currentChord = chords[chordIndex];
 
-  // Hover/UI feedback - subtle beep
-  playUIHover() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-
-    const osc = this.audioContext.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 800;
-
-    // Very brief and quiet
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      this.sfxVolume * 0.2,
-      this.audioContext.currentTime + 0.01
-    );
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.audioContext.currentTime + 0.05
-    );
-
-    osc.connect(gain);
-    osc.start();
-    osc.stop(this.audioContext.currentTime + 0.05);
-  }
-
-  // Orbital collision - when hitting occupied orbital without knocking out
-  playOrbitalCollision() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-
-    // Similar to wrong electron but shorter and less dissonant
-    const osc = this.audioContext.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(330, this.audioContext.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-      280,
-      this.audioContext.currentTime + 0.1
-    );
-
-    // Quick bounce sound
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      this.sfxVolume * 0.3,
-      this.audioContext.currentTime + 0.01
-    );
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.audioContext.currentTime + 0.12
-    );
-
-    osc.connect(gain);
-    osc.start();
-    osc.stop(this.audioContext.currentTime + 0.12);
-  }
-
-  // Game over sound - when timer runs out
-  playGameOver() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.6;
-
-    // Descending minor chord - melancholy but not harsh
-    const frequencies = [523.25, 415.3, 349.23, 261.63]; // C - Ab - F - C (minor)
-
-    frequencies.forEach((freq, index) => {
-      const osc = this.audioContext.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-
-      const noteGain = this.audioContext.createGain();
-      noteGain.connect(gain);
-
-      const startTime = this.audioContext.currentTime + index * 0.15;
-      const duration = 0.6;
-
-      noteGain.gain.setValueAtTime(0, startTime);
-      noteGain.gain.linearRampToValueAtTime(0.25, startTime + 0.1);
-      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-      osc.connect(noteGain);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    });
-  }
-
-  // Ethereal orbital gliding - like floating through space
-  playOrbitalGlide(velocity = 1.0) {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.08 * Math.min(velocity, 1.0); // Very subtle, velocity-based
-
-    // Create ethereal floating sound with multiple harmonics
-    const osc1 = this.audioContext.createOscillator();
-    const osc2 = this.audioContext.createOscillator();
-    const filter1 = this.audioContext.createBiquadFilter();
-    const filter2 = this.audioContext.createBiquadFilter();
-
-    // Sine waves for pure, ethereal quality
-    osc1.type = "sine";
-    osc2.type = "sine";
-    osc1.frequency.value = 220 + velocity * 60; // Base frequency
-    osc2.frequency.value = (220 + velocity * 60) * 1.5; // Perfect fifth for harmony
-
-    // Heavy filtering for dreaminess
-    filter1.type = "lowpass";
-    filter1.frequency.value = 400 + velocity * 200;
-    filter1.Q.value = 3;
-    
-    filter2.type = "bandpass";
-    filter2.frequency.value = 600 + velocity * 300;
-    filter2.Q.value = 5;
-
-    // Breathing envelope
-    const now = this.audioContext.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(gain.gain.value, now + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3 + Math.random() * 0.2);
-
-    osc1.connect(filter1);
-    osc2.connect(filter2);
-    filter1.connect(gain);
-    filter2.connect(gain);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(now + 0.5);
-    osc2.stop(now + 0.5);
-  }
-
-  // Time running out warning sound
-  playTimeWarning() {
-    if (!this.isInitialized) return;
-
-    const gain = this.audioContext.createGain();
-    gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.4;
-
-    // Urgent but not harsh warning tone
-    const osc1 = this.audioContext.createOscillator();
-    const osc2 = this.audioContext.createOscillator();
-
-    osc1.type = "triangle";
-    osc2.type = "triangle";
-    osc1.frequency.value = 440; // A4
-    osc2.frequency.value = 554; // C#5 - creates tension
-
-    // Pulsing envelope for urgency
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      0.3,
-      this.audioContext.currentTime + 0.05
-    );
-    gain.gain.linearRampToValueAtTime(
-      0.1,
-      this.audioContext.currentTime + 0.15
-    );
-    gain.gain.linearRampToValueAtTime(
-      0.3,
-      this.audioContext.currentTime + 0.25
-    );
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.audioContext.currentTime + 0.5
-    );
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-
-    osc1.start();
-    osc2.start();
-    osc1.stop(this.audioContext.currentTime + 0.5);
-    osc2.stop(this.audioContext.currentTime + 0.5);
-  }
-
-  // Toggle mute
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.isMuted ? 0 : this.volume;
-    }
-    return this.isMuted;
-  }
-
-  // Cleanup
-  destroy() {
-    if (this.backgroundMusic) {
-      // Stop all oscillators (both chord and ambient layers)
-      this.backgroundMusic.oscillators.forEach((osc) => {
-        if (osc && osc.stop) {
-          try {
-            osc.stop();
-          } catch (e) {
-            // Oscillator may already be stopped
-          }
-        }
-      });
-
-      if (this.backgroundMusic.lfo) {
-        try {
-          this.backgroundMusic.lfo.stop();
-        } catch (e) {
-          // LFO may already be stopped
-        }
+      // Update bass note
+      if (bass.frequency) {
+        const bassNote = currentChord[0] / 2; // Octave down
+        bass.frequency.exponentialRampToValueAtTime(
+          bassNote,
+          this.c.currentTime + 1
+        );
       }
 
-      this.backgroundMusic = null;
-    }
+      // Update chord voices
+      chordOscs.forEach((voice, i) => {
+        if (voice.osc.frequency) {
+          voice.osc.frequency.exponentialRampToValueAtTime(
+            currentChord[i],
+            this.c.currentTime + 1.5
+          );
+        }
+      });
 
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
+      chordIndex = (chordIndex + 1) % chords.length;
+      setTimeout(changeChord, 8000);
+    };
 
-    this.isInitialized = false;
+    // Melody notes (every 2-3 seconds)
+    const playMelodyNote = () => {
+      const note = melodyNotes[melodyIndex];
+
+      if (melody.frequency) {
+        // Gentle note entry
+        melodyGain.gain.cancelScheduledValues(this.c.currentTime);
+        melodyGain.gain.setValueAtTime(0, this.c.currentTime);
+        melodyGain.gain.linearRampToValueAtTime(
+          0.004,
+          this.c.currentTime + 0.3
+        );
+        melodyGain.gain.linearRampToValueAtTime(0.001, this.c.currentTime + 2);
+
+        melody.frequency.exponentialRampToValueAtTime(
+          note,
+          this.c.currentTime + 0.1
+        );
+      }
+
+      melodyIndex = (melodyIndex + 1) % melodyNotes.length;
+      setTimeout(playMelodyNote, 2500 + Math.random() * 1000);
+    };
+
+    // Start sequences
+    setTimeout(changeChord, 4000); // First chord change after 4s
+    setTimeout(playMelodyNote, 6000); // First melody note after 6s
+  }
+
+  // Mute toggle
+  t() {
+    this.muted = !this.muted;
+    this.g.gain.value = this.muted ? 0 : 0.3;
+    return this.muted;
   }
 }
 
+// Usage shortcuts
+// a.p(0) - collision
+// a.p(1) - capture (with auto-twinkle)
+// a.p(2) - knocked out
+// a.p(3) - wrong electron
+// a.p(4) - orbital stun
+// a.p(5) - UI hover
+// a.p(6) - time warning
+// a.p(7) - level complete
+// a.p(8) - twinkle (auto-triggered)
 
-// Simple atomic physics game
-class Game {
+
+// Ultra-golfed game for JS13K
+class G {
   constructor() {
-    this.canvas = document.getElementById("gameCanvas");
-    this.ctx = this.canvas.getContext("2d");
+    this.c = document.getElementById("gameCanvas");
+    this.ctx = this.c.getContext("2d");
 
     // Systems
-    this.input = new InputSystem(this.canvas);
-    this.audio = new AudioSystem();
-    this.orbitals = new OrbitalSystem(this.canvas, this.audio);
-    this.tutorial = new Tutorial(this);
+    this.input = { mouse: { x: 400, y: 300 } };
+    this.c.addEventListener("mousemove", (e) => {
+      let rect = this.c.getBoundingClientRect();
+      this.input.mouse.x = e.clientX - rect.left;
+      this.input.mouse.y = e.clientY - rect.top;
+      this.orbitals.setMouse(this.input.mouse.x, this.input.mouse.y);
+    });
 
-    // Electrons
+    this.audio = new A();
+    this.orbitals = new O(this.c, this.audio);
+    this.tutorial = new T(this);
+
     this.electrons = [];
-    this.spawnElectrons();
-
-    // Background particles for atmosphere
     this.particles = [];
+
+    this.spawn();
     this.spawnParticles();
 
-    // Click handler for level progression/restart and tip closing
-    this.canvas.addEventListener("click", async () => {
-      // Initialize audio on first user interaction
-      if (!this.audio.isInitialized) {
-        await this.audio.init();
+    // Click handler
+    this.c.addEventListener("click", async () => {
+      if (!this.audio.c) {
+        await this.audio.i();
+        this.audio.m();
       }
 
-      // Check if educational tip is showing
-      if (this.orbitals.showingTip) {
-        this.orbitals.closeTip();
-        this.audio.playUIHover();
+      if (this.orbitals.tip) {
+        this.orbitals.tip = 0;
+        this.audio.p(5);
         return;
       }
 
-      let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
-      if (this.orbitals.checkCompletion()) {
-        this.audio.playLevelComplete();
+      let timeLeft = Math.max(0, this.orbitals.T - this.orbitals.t);
+      if (this.orbitals.checkComplete()) {
+        this.audio.p(7); // level complete (need to add this sound)
         this.orbitals.nextLevel();
-        this.spawnElectrons();
+        this.spawn();
       } else if (timeLeft <= 0) {
-        this.audio.playGameOver();
-        this.orbitals.resetLevel();
-        this.spawnElectrons();
+        this.audio.p(6); // game over
+        this.orbitals.r();
+        this.spawn();
       }
     });
 
-    // Keyboard handler for closing tips with Escape
+    // Keyboard
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        if (this.orbitals.showingTip) {
-          this.orbitals.closeTip();
+        if (this.orbitals.tip) {
+          this.orbitals.tip = 0;
         } else {
-          // Show tutorial when Escape is pressed and no tip is showing
           this.tutorial.show();
         }
       } else if (e.key === "m" || e.key === "M") {
-        // Toggle mute with 'M' key
-        const isMuted = this.audio.toggleMute();
-        console.log(isMuted ? "Audio muted" : "Audio unmuted");
+        this.audio.t();
       } else if (e.key === "r" || e.key === "R") {
-        // Restart from level 1 with 'R' key
-        this.orbitals.currentLevel = 0;
-        this.orbitals.score = 0;
-        this.orbitals.resetLevel();
-        this.spawnElectrons();
-        this.audio.playUIHover();
-        console.log("Restarted from level 1");
+        this.orbitals.l = 0;
+        this.orbitals.s = 0;
+        this.orbitals.r();
+        this.spawn();
+        this.audio.p(5);
       }
     });
 
-    this.gameLoop();
+    this.loop();
 
-    // Show tutorial on first visit
+    // Show tutorial
     setTimeout(() => {
-      if (this.tutorial.shouldShow()) {
-        this.tutorial.show();
-      }
-    }, 1000); // Small delay to let the game load
+      if (this.tutorial.shouldShow()) this.tutorial.show();
+    }, 1000);
   }
 
-  spawnElectrons() {
+  spawn() {
     this.electrons = [];
-
-    // Count and spawn electrons for each type
-    ["blue", "orange"].forEach((type) => {
-      let count = this.orbitals.orbitals.filter((o) => o.type === type).length;
+    let types = [0, 1]; // blue,orange
+    types.forEach((type) => {
+      let count = this.orbitals.o.filter((o) => o.type === type).length;
       for (let i = 0; i < count; i++) {
-        this.electrons.push(
-          new Electron(
-            Math.random() * (this.canvas.width - 100) + 50,
-            Math.random() * (this.canvas.height - 100) + 50,
-            type,
-            this.audio
-          )
-        );
+        let x,
+          y,
+          attempts = 0;
+        do {
+          x = Math.random() * (this.c.width - 200) + 100;
+          y = Math.random() * (this.c.height - 200) + 100;
+          attempts++;
+        } while (attempts < 10 && this.nearOrbital(x, y, 60));
+
+        this.electrons.push(new E(x, y, type, this.audio));
       }
     });
   }
 
-  // Respawn a single electron of specific type (called when knocked out)
-  respawnElectron(type) {
-    // Find a safe spawn location away from orbitals
+  respawn(type) {
     let x,
       y,
       attempts = 0;
     do {
-      x = Math.random() * (this.canvas.width - 200) + 100;
-      y = Math.random() * (this.canvas.height - 200) + 100;
+      x = Math.random() * (this.c.width - 200) + 100;
+      y = Math.random() * (this.c.height - 200) + 100;
       attempts++;
-    } while (attempts < 10 && this.isNearOrbital(x, y, 60));
+    } while (attempts < 10 && this.nearOrbital(x, y, 60));
 
-    // Create and add the new electron
-    const newElectron = new Electron(x, y, type, this.audio);
-    newElectron.vx = (Math.random() - 0.5) * 3;
-    newElectron.vy = (Math.random() - 0.5) * 3;
-    this.electrons.push(newElectron);
+    let e = new E(x, y, type, this.audio);
+    e.vx = (Math.random() - 0.5) * 3;
+    e.vy = (Math.random() - 0.5) * 3;
+    this.electrons.push(e);
   }
 
-  // Check if position is too close to any orbital
-  isNearOrbital(x, y, minDistance) {
-    return this.orbitals.orbitals.some((orbital) => {
-      const dx = x - orbital.x;
-      const dy = y - orbital.y;
-      return Math.sqrt(dx * dx + dy * dy) < minDistance;
+  nearOrbital(x, y, minDist) {
+    return this.orbitals.o.some((o) => {
+      let dx = x - o.x,
+        dy = y - o.y;
+      return Math.sqrt(dx * dx + dy * dy) < minDist;
     });
   }
 
   spawnParticles() {
     this.particles = [];
-    // Create subtle background particles
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 20; i++) {
       this.particles.push({
-        x: Math.random() * this.canvas.width,
-        y: Math.random() * this.canvas.height,
+        x: Math.random() * this.c.width,
+        y: Math.random() * this.c.height,
         vx: (Math.random() - 0.5) * 0.3,
         vy: (Math.random() - 0.5) * 0.3,
         alpha: Math.random() * 0.4 + 0.1,
-        phase: Math.random() * Math.PI * 2,
+        phase: Math.random() * 6.28,
         size: Math.random() * 1.5 + 0.5,
       });
     }
@@ -2315,24 +1208,30 @@ class Game {
   update() {
     this.orbitals.update();
 
-    // Update particles with subtle drift and twinkling
+    // Check for knocked out electron respawn
+    if (this.orbitals.k) {
+      this.respawn(this.orbitals.k.type);
+      this.orbitals.k = null;
+    }
+
+    // Update particles
     for (let p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
       p.phase += 0.02;
 
-      // Wrap around edges
-      if (p.x < 0) p.x = this.canvas.width;
-      if (p.x > this.canvas.width) p.x = 0;
-      if (p.y < 0) p.y = this.canvas.height;
-      if (p.y > this.canvas.height) p.y = 0;
+      if (p.x < 0) p.x = this.c.width;
+      if (p.x > this.c.width) p.x = 0;
+      if (p.y < 0) p.y = this.c.height;
+      if (p.y > this.c.height) p.y = 0;
     }
 
-    for (let electron of this.electrons) {
-      electron.update(
+    // Update electrons
+    for (let e of this.electrons) {
+      e.update(
         this.input.mouse.x,
         this.input.mouse.y,
-        this.orbitals.orbitals,
+        this.orbitals.o,
         this.orbitals
       );
     }
@@ -2340,67 +1239,71 @@ class Game {
 
   draw() {
     this.ctx.fillStyle = "rgb(10,10,20)";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.c.width, this.c.height);
 
-    // Draw background particles
+    // Background particles
     this.ctx.save();
     for (let p of this.particles) {
       let twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(p.phase));
       this.ctx.fillStyle = `rgba(200,220,255,${p.alpha * twinkle})`;
       this.ctx.beginPath();
-      this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      this.ctx.arc(p.x, p.y, p.size, 0, 6.28);
       this.ctx.fill();
     }
     this.ctx.restore();
 
-    // Draw cursor glow (only when tip is not showing)
-    if (!this.orbitals.showingTip) {
+    // Cursor glow
+    if (!this.orbitals.tip) {
       this.ctx.save();
-      this.ctx.shadowColor = "rgba(100,150,255,0.6)";
+      this.ctx.shadowColor = "rgba(100,150,255,.6)";
       this.ctx.shadowBlur = 20;
-      this.ctx.fillStyle = "rgba(100,150,255,0.2)";
+      this.ctx.fillStyle = "rgba(100,150,255,.2)";
       this.ctx.beginPath();
-      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
+      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, 6.28);
       this.ctx.fill();
       this.ctx.restore();
     }
 
     this.orbitals.draw(this.ctx);
 
-    // Draw electrons (only when tip is not showing)
-    if (!this.orbitals.showingTip) {
-      for (let electron of this.electrons) {
-        electron.draw(this.ctx);
+    // Draw electrons
+    if (!this.orbitals.tip) {
+      for (let e of this.electrons) {
+        e.draw(this.ctx);
       }
     }
 
-    this.ctx.fillStyle = "rgba(255,255,255,0.7)";
-    this.ctx.font = "12px Arial";
+    // Instructions
+    this.ctx.fillStyle = "rgba(255,255,255,.7)";
+    this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Spin-up (↑) repel, spin-down (↓) attract | M: Mute | R: Restart | Esc: Help",
+      "Blue↓ attract, Orange↑ repel | M:Mute R:Restart ESC:Help",
       20,
-      this.canvas.height - 20
+      this.c.height - 20
     );
   }
 
-  gameLoop() {
+  loop() {
     this.update();
     this.draw();
-    requestAnimationFrame(() => this.gameLoop());
+    requestAnimationFrame(() => this.loop());
   }
 
-  // Method called by tutorial when ready to start
   start() {
-    // Game is already running, this is just for tutorial integration
-    console.log("Game started from tutorial");
+    console.log("Game started");
   }
 }
 
 
-// Start the game
-const game = new Game();
-window.game = game; // Make game globally accessible
-game.gameLoop();
-</script>
+
+// Initialize the golfed game
+window.game = new G();
+window.tutorial = window.game.tutorial; // Make tutorial globally accessible
+  </script>
+    <script>
+      // Start the game
+      window.game = new G();
+      window.tutorial = window.game.tutorial; // Make tutorial globally accessible
+    </script>
   </body>
 </html>

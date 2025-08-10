@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "python3 -m http.server 8080 --directory src",
     "start": "npm run dev",
-    "build": "node build/build.js",
+    "build": "node build/buildGolfed.js",
     "size": "npm run build"
   },
   "keywords": [
