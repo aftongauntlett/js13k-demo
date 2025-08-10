@@ -133,25 +133,7 @@ class Electron {
             if (this.audio) {
               this.audio.playElectronKnockedOut();
             }
-
-            // Create a new electron to replace the knocked-out one
-            // Spawn it near the orbital but with some random velocity
-            let newElectron = new Electron(
-              orbital.x + (M.random() - 0.5) * 100,
-              orbital.y + (M.random() - 0.5) * 100,
-              orbital.type,
-              this.audio
-            );
-            // Add some initial velocity to the new electron
-            newElectron.vx = (M.random() - 0.5) * 4;
-            newElectron.vy = (M.random() - 0.5) * 4;
-
-            // Add the new electron to the game
-            // We need access to the electrons array from the game instance
-            // For now, we'll store it in a way the game can pick it up
-            if (window.game) {
-              window.game.electrons.push(newElectron);
-            }
+            // Electron will be respawned by the orbital system
           } else {
             // Just a collision, not a knockout
             if (this.audio) {

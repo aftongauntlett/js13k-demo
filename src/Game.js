@@ -97,6 +97,34 @@ class Game {
     });
   }
 
+  // Respawn a single electron of specific type (called when knocked out)
+  respawnElectron(type) {
+    // Find a safe spawn location away from orbitals
+    let x,
+      y,
+      attempts = 0;
+    do {
+      x = Math.random() * (this.canvas.width - 200) + 100;
+      y = Math.random() * (this.canvas.height - 200) + 100;
+      attempts++;
+    } while (attempts < 10 && this.isNearOrbital(x, y, 60));
+
+    // Create and add the new electron
+    const newElectron = new Electron(x, y, type, this.audio);
+    newElectron.vx = (Math.random() - 0.5) * 3;
+    newElectron.vy = (Math.random() - 0.5) * 3;
+    this.electrons.push(newElectron);
+  }
+
+  // Check if position is too close to any orbital
+  isNearOrbital(x, y, minDistance) {
+    return this.orbitals.orbitals.some((orbital) => {
+      const dx = x - orbital.x;
+      const dy = y - orbital.y;
+      return Math.sqrt(dx * dx + dy * dy) < minDistance;
+    });
+  }
+
   spawnParticles() {
     this.particles = [];
     // Create subtle background particles

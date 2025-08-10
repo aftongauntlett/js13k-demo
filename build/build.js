@@ -46,6 +46,8 @@ ${gameJs}
 
 // Start the game
 const game = new Game();
+window.game = game; // Make game globally accessible
+game.gameLoop();
 `;
 
 // Replace the script tags with inline JavaScript

@@ -9,6 +9,7 @@ class OrbitalSystem {
     this.levelTime = 45; // 45 seconds per level
     this.audio = audioSystem; // Reference to audio system
     this.timeWarningPlayed = false; // Track if time warning sound has been played
+    this.knockedOutElectron = null; // Track knocked-out electrons for respawning
 
     // Orbital factory for consistent properties and smaller code
     const G3 = Math.PI / 3,
@@ -147,6 +148,7 @@ class OrbitalSystem {
     }));
     this.time = 0;
     this.timeWarningPlayed = false; // Reset time warning for new level
+    this.knockedOutElectron = null; // Reset knocked-out electron tracking
   }
 
   checkCompletion() {
@@ -156,6 +158,38 @@ class OrbitalSystem {
   update() {
     const M = Math; // Shorter reference
     this.time += 1 / 60; // Assuming 60fps
+
+    // Check for knocked-out electron respawning
+    if (
+      this.knockedOutElectron &&
+      this.time >= this.knockedOutElectron.spawnTime
+    ) {
+      // Notify game to spawn a new electron
+      try {
+        if (window.game && typeof window.game.respawnElectron === "function") {
+          window.game.respawnElectron(this.knockedOutElectron.type);
+        } else {
+          console.warn(
+            "Game respawnElectron method not available, spawning manually"
+          );
+          // Fallback: create electron manually if game method fails
+          if (window.game && window.game.electrons) {
+            const newElectron = new Electron(
+              Math.random() * (this.canvas.width - 200) + 100,
+              Math.random() * (this.canvas.height - 200) + 100,
+              this.knockedOutElectron.type,
+              this.audio
+            );
+            newElectron.vx = (Math.random() - 0.5) * 3;
+            newElectron.vy = (Math.random() - 0.5) * 3;
+            window.game.electrons.push(newElectron);
+          }
+        }
+      } catch (error) {
+        console.error("Error respawning electron:", error);
+      }
+      this.knockedOutElectron = null; // Clear the respawn request
+    }
 
     // Auto-hide educational tip after 4 seconds
     if (this.showingTip && this.time - this.tipStartTime > 4) {
@@ -201,15 +235,23 @@ class OrbitalSystem {
   // Check if electron can enter orbital gap
   canEnterOrbital(orbital, electronX, electronY) {
     if (orbital.stunned) return false; // Stunned orbitals can't accept electrons
+    if (!orbital.rotate) return true; // Non-rotating orbitals are always open
 
     let dx = electronX - orbital.x,
       dy = electronY - orbital.y;
     let electronAngle = Math.atan2(dy, dx);
-    let relativeAngle = (electronAngle - orbital.angle + this.TAU) % this.TAU;
 
-    return (
-      relativeAngle < orbital.gap || relativeAngle > this.TAU - orbital.gap
-    );
+    // Normalize angles to 0-2π range
+    let normalizedElectronAngle = (electronAngle + this.TAU) % this.TAU;
+    let normalizedOrbitalAngle = (orbital.angle + this.TAU) % this.TAU;
+
+    // Calculate the relative angle between electron and orbital gap
+    let relativeAngle =
+      (normalizedElectronAngle - normalizedOrbitalAngle + this.TAU) % this.TAU;
+
+    // Check if electron is within the gap (more precise detection)
+    let halfGap = orbital.gap / 2;
+    return relativeAngle <= halfGap || relativeAngle >= this.TAU - halfGap;
   }
 
   // Stun an orbital when wrong-color electron hits it
@@ -236,6 +278,13 @@ class OrbitalSystem {
       orbital.shaking = false;
       orbital.shakeOffsetX = 0;
       orbital.shakeOffsetY = 0;
+
+      // Store the knocked-out electron info for respawning
+      this.knockedOutElectron = {
+        type: orbital.type,
+        spawnTime: this.time + 0.5, // Spawn after half a second
+      };
+
       return true; // Electron was knocked out
     }
     return false; // Electron still in orbital

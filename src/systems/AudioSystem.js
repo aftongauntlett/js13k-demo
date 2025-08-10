@@ -34,7 +34,7 @@ class AudioSystem {
     }
   }
 
-  // Generate ultra-chill ambient background music
+  // Generate ethereal, celestial ambient background music (Celeste-inspired)
   startBackgroundMusic() {
     if (!this.isInitialized || this.backgroundMusic) return;
 
@@ -42,40 +42,54 @@ class AudioSystem {
     musicGain.connect(this.masterGain);
     musicGain.gain.value = this.musicVolume;
 
-    // Simple, peaceful chord progression - all major/consonant chords
-    // Using C - F - Am - G progression (very stable and calming)
-    const chordProgression = [
-      [130.81, 164.81, 196.0], // C major (C-E-G) - peaceful home
-      [174.61, 220.0, 261.63], // F major (F-A-C) - warm and stable
-      [220.0, 261.63, 329.63], // A minor (A-C-E) - gentle and soft
-      [196.0, 246.94, 293.66], // G major (G-B-D) - uplifting resolution
+    // Ethereal celestial chord progression - dreamy, floating feeling
+    // Using extended chords with 7ths and 9ths for that spacey, atmospheric sound
+    const celestialChords = [
+      [130.81, 164.81, 196.0, 246.94, 293.66], // Cmaj9 - floating, open
+      [146.83, 184.997, 220.0, 277.18, 329.63], // Dmaj9 - lifted, bright
+      [164.81, 207.65, 246.94, 311.13, 369.99], // Emaj7 - warm, enveloping
+      [174.61, 220.0, 261.63, 329.63, 392.0], // Fmaj9 - grounded yet ethereal
     ];
 
-    const oscillators = [];
+    // Create ethereal pad layer with slow-moving chords
+    this.createEtherealPads(celestialChords, musicGain);
+
+    // Create twinkling star-like arpeggios
+    this.createTwinklingLayer(musicGain);
+
+    // Create ambient echo/reverb layer
+    this.createAmbientEchoLayer(musicGain);
+
+    this.backgroundMusic = { musicGain, chords: celestialChords };
+
+    console.log("Ethereal celestial background music started");
+  }
+
+  // Ethereal pad layer - slowly morphing chords
+  createEtherealPads(chords, musicGain) {
     let currentChord = 0;
     let nextChordTime = this.audioContext.currentTime;
 
-    // Function to play very soft, warm chords
-    const playChord = (frequencies, startTime, duration) => {
+    const playEtherealChord = (frequencies, startTime, duration) => {
       frequencies.forEach((freq, index) => {
         const osc = this.audioContext.createOscillator();
         const oscGain = this.audioContext.createGain();
         const filter = this.audioContext.createBiquadFilter();
 
-        // Pure sine waves for maximum smoothness
-        osc.type = "sine";
-        osc.frequency.value = freq * 0.5; // Low octave for warmth
+        // Soft sawtooth waves for rich harmonics, filtered heavily
+        osc.type = "sawtooth";
+        osc.frequency.value = freq * 0.25; // Two octaves down for deep pad sound
 
-        // Very gentle low-pass filter to remove any harsh frequencies
+        // Heavy low-pass filtering for ethereal softness
         filter.type = "lowpass";
-        filter.frequency.value = 800; // Increased from 400 to let more harmonics through
-        filter.Q.value = 0.1; // Very gentle filtering
+        filter.frequency.value = 400 + Math.sin(startTime * 0.2) * 100; // Slow filter sweep
+        filter.Q.value = 0.5;
 
-        // Extremely gentle fade in/out - no sudden changes
+        // Very slow, breathing envelope
         oscGain.gain.setValueAtTime(0, startTime);
-        oscGain.gain.linearRampToValueAtTime(0.15, startTime + 2); // Increased from 0.08 to be more audible
-        oscGain.gain.setValueAtTime(0.15, startTime + duration - 2);
-        oscGain.gain.linearRampToValueAtTime(0, startTime + duration);
+        oscGain.gain.linearRampToValueAtTime(0.08, startTime + 4); // 4 second fade in
+        oscGain.gain.setValueAtTime(0.08, startTime + duration - 4);
+        oscGain.gain.linearRampToValueAtTime(0, startTime + duration); // 4 second fade out
 
         osc.connect(filter);
         filter.connect(oscGain);
@@ -86,147 +100,248 @@ class AudioSystem {
       });
     };
 
-    // Schedule chord progression with longer, more relaxed timing
     const scheduleNextChord = () => {
-      const chordDuration = 8; // 8 seconds per chord for maximum calm
-      playChord(chordProgression[currentChord], nextChordTime, chordDuration);
+      const chordDuration = 12; // 12 seconds per chord for maximum ethereal effect
+      playEtherealChord(chords[currentChord], nextChordTime, chordDuration);
 
-      console.log(`Playing chord ${currentChord + 1} at time ${nextChordTime}`);
-
-      currentChord = (currentChord + 1) % chordProgression.length;
+      currentChord = (currentChord + 1) % chords.length;
       nextChordTime += chordDuration;
 
-      // Schedule next chord
-      setTimeout(() => scheduleNextChord(), (chordDuration - 1.5) * 1000);
-    }; // Remove the high ambient layer that might be grating
-    // Just keep one very subtle bass pad
-    const bassPad = this.audioContext.createOscillator();
-    const bassPadGain = this.audioContext.createGain();
-    const bassPadFilter = this.audioContext.createBiquadFilter();
+      setTimeout(() => scheduleNextChord(), (chordDuration - 2) * 1000);
+    };
 
-    bassPad.type = "triangle";
-    bassPad.frequency.value = 65.41; // Low C
-
-    bassPadFilter.type = "lowpass";
-    bassPadFilter.frequency.value = 200; // Very low
-    bassPadFilter.Q.value = 0.1;
-
-    bassPadGain.gain.value = 0.01; // Increased from 0.002 to be more audible
-
-    bassPad.connect(bassPadFilter);
-    bassPadFilter.connect(bassPadGain);
-    bassPadGain.connect(musicGain);
-
-    bassPad.start();
-    oscillators.push(bassPad);
-
-    // Very subtle, slow LFO for gentle movement
-    const lfo = this.audioContext.createOscillator();
-    const lfoGain = this.audioContext.createGain();
-    lfo.type = "sine";
-    lfo.frequency.value = 0.03; // Extremely slow
-    lfoGain.gain.value = 15; // Very gentle modulation
-
-    lfo.connect(lfoGain);
-    lfoGain.connect(bassPadFilter.frequency);
-    lfo.start();
-
-    // Start the chord progression
     scheduleNextChord();
-
-    this.backgroundMusic = { oscillators, lfo, musicGain };
-    console.log("Ultra-chill ambient background music started");
   }
 
-  // Electron capture sound - soft, crystalline
+  // Twinkling star-like arpeggios
+  createTwinklingLayer(musicGain) {
+    const twinkleGain = this.audioContext.createGain();
+    twinkleGain.connect(musicGain);
+    twinkleGain.gain.value = 0.3;
+
+    // High frequencies for twinkling effect
+    const twinkleNotes = [
+      523.25,
+      587.33,
+      659.25,
+      698.46,
+      783.99,
+      880.0,
+      987.77,
+      1046.5, // C5-C6
+      1174.66,
+      1318.51,
+      1396.91,
+      1567.98, // Higher octave sparkles
+    ];
+
+    const createTwinkle = () => {
+      const osc = this.audioContext.createOscillator();
+      const oscGain = this.audioContext.createGain();
+      const filter = this.audioContext.createBiquadFilter();
+
+      // Sine waves for pure, bell-like tones
+      osc.type = "sine";
+      osc.frequency.value =
+        twinkleNotes[Math.floor(Math.random() * twinkleNotes.length)];
+
+      // High-pass filter for sparkly effect
+      filter.type = "highpass";
+      filter.frequency.value = 800;
+      filter.Q.value = 1;
+
+      // Quick sparkle envelope
+      const now = this.audioContext.currentTime;
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+      oscGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 2 + Math.random() * 3
+      );
+
+      osc.connect(filter);
+      filter.connect(oscGain);
+      oscGain.connect(twinkleGain);
+
+      osc.start(now);
+      osc.stop(now + 5);
+
+      // Schedule next twinkle randomly
+      setTimeout(() => createTwinkle(), 1000 + Math.random() * 4000);
+    };
+
+    // Start twinkling
+    createTwinkle();
+  }
+
+  // Ambient echo/reverb layer for spacey atmosphere
+  createAmbientEchoLayer(musicGain) {
+    const ambientGain = this.audioContext.createGain();
+    ambientGain.connect(musicGain);
+    ambientGain.gain.value = 0.2;
+
+    const createAmbientTone = () => {
+      const osc = this.audioContext.createOscillator();
+      const oscGain = this.audioContext.createGain();
+      const filter1 = this.audioContext.createBiquadFilter();
+      const filter2 = this.audioContext.createBiquadFilter();
+
+      // Very low frequency drone with filtered noise-like texture
+      osc.type = "triangle";
+      osc.frequency.value = 65.41 + Math.random() * 32; // Around C2, slightly detuned
+
+      // Double filtering for extra ethereal quality
+      filter1.type = "lowpass";
+      filter1.frequency.value = 200;
+      filter1.Q.value = 2;
+
+      filter2.type = "highpass";
+      filter2.frequency.value = 80;
+      filter2.Q.value = 0.5;
+
+      // Very long, slow envelope
+      const now = this.audioContext.currentTime;
+      const duration = 20 + Math.random() * 15; // 20-35 second drones
+
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.05, now + 8); // 8 second fade in
+      oscGain.gain.setValueAtTime(0.05, now + duration - 8);
+      oscGain.gain.linearRampToValueAtTime(0, now + duration); // 8 second fade out
+
+      osc.connect(filter1);
+      filter1.connect(filter2);
+      filter2.connect(oscGain);
+      oscGain.connect(ambientGain);
+
+      osc.start(now);
+      osc.stop(now + duration);
+
+      // Schedule next ambient tone
+      setTimeout(() => createAmbientTone(), (duration - 10) * 1000);
+    };
+
+    // Start ambient layer
+    createAmbientTone();
+  }
+
+  // Ethereal electron capture sound - crystalline bells with echo
   playElectronCapture() {
     if (!this.isInitialized) return;
 
     const gain = this.audioContext.createGain();
     gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.5;
+    gain.gain.value = this.sfxVolume * 0.6;
 
-    // Soft crystal-like chime using multiple harmonics
-    const frequencies = [523.25, 659.25, 783.99]; // C major triad high octave
+    // Ethereal crystal-like chime cascade - multiple octaves for richness
+    const frequencies = [
+      523.25,
+      659.25,
+      783.99, // C major triad
+      1046.5,
+      1318.51,
+      1567.98, // Same triad one octave higher for sparkle
+    ];
 
     frequencies.forEach((freq, index) => {
       const osc = this.audioContext.createOscillator();
       const oscGain = this.audioContext.createGain();
       const filter = this.audioContext.createBiquadFilter();
 
-      osc.type = "triangle";
+      // Sine waves for pure, bell-like tones
+      osc.type = "sine";
       osc.frequency.value = freq;
 
-      filter.type = "lowpass";
-      filter.frequency.value = 3000;
-      filter.Q.value = 2;
+      // High-Q filter for crystalline resonance
+      filter.type = "bandpass";
+      filter.frequency.value = freq * 1.2;
+      filter.Q.value = 8; // High Q for bell-like resonance
 
-      const startTime = this.audioContext.currentTime + index * 0.05;
+      const startTime = this.audioContext.currentTime + index * 0.03; // Slight cascade timing
 
+      // Bell-like envelope with longer decay
       oscGain.gain.setValueAtTime(0, startTime);
-      oscGain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+      oscGain.gain.linearRampToValueAtTime(0.15, startTime + 0.01);
+      oscGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        startTime + 1.5 + Math.random() * 0.5
+      );
 
       osc.connect(filter);
       filter.connect(oscGain);
       oscGain.connect(gain);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.4);
+      osc.stop(startTime + 2);
     });
   }
 
-  // Wrong electron type collision - soft negative feedback
+  // Ethereal wrong electron feedback - gentle, floating dissonance
   playWrongElectron() {
     if (!this.isInitialized) return;
 
     const gain = this.audioContext.createGain();
     gain.connect(this.masterGain);
 
-    // Soft dissonant chord that resolves downward
+    // Gentle, floating dissonance that drifts away rather than harsh rejection
     const osc1 = this.audioContext.createOscillator();
     const osc2 = this.audioContext.createOscillator();
+    const filter1 = this.audioContext.createBiquadFilter();
+    const filter2 = this.audioContext.createBiquadFilter();
 
-    osc1.type = "triangle";
-    osc1.frequency.setValueAtTime(349.23, this.audioContext.currentTime); // F
+    // Sine waves for ethereal quality
+    osc1.type = "sine";
+    osc2.type = "sine";
+
+    // Start with a gentle interval, then drift apart
+    osc1.frequency.setValueAtTime(440, this.audioContext.currentTime); // A
     osc1.frequency.exponentialRampToValueAtTime(
-      261.63,
-      this.audioContext.currentTime + 0.3
-    ); // to C
+      392,
+      this.audioContext.currentTime + 1.2
+    ); // drift to G
 
-    osc2.type = "triangle";
-    osc2.frequency.setValueAtTime(369.99, this.audioContext.currentTime); // F#
+    osc2.frequency.setValueAtTime(466.16, this.audioContext.currentTime); // A# (slight dissonance)
     osc2.frequency.exponentialRampToValueAtTime(
-      246.94,
-      this.audioContext.currentTime + 0.3
-    ); // to B
+      349.23,
+      this.audioContext.currentTime + 1.2
+    ); // drift to F
+
+    // Heavy filtering for dreaminess
+    filter1.type = "lowpass";
+    filter1.frequency.value = 800;
+    filter1.Q.value = 2;
+
+    filter2.type = "lowpass";
+    filter2.frequency.value = 600;
+    filter2.Q.value = 2;
 
     const osc1Gain = this.audioContext.createGain();
     const osc2Gain = this.audioContext.createGain();
 
-    osc1Gain.gain.value = 0.15;
-    osc2Gain.gain.value = 0.15;
+    osc1Gain.gain.value = 0.12;
+    osc2Gain.gain.value = 0.12;
 
-    osc1.connect(osc1Gain);
-    osc2.connect(osc2Gain);
+    osc1.connect(filter1);
+    filter1.connect(osc1Gain);
+    osc2.connect(filter2);
+    filter2.connect(osc2Gain);
     osc1Gain.connect(gain);
     osc2Gain.connect(gain);
 
-    // Soft envelope
+    // Floating, dreamy envelope
     gain.gain.setValueAtTime(0, this.audioContext.currentTime);
     gain.gain.linearRampToValueAtTime(
-      this.sfxVolume * 0.3,
-      this.audioContext.currentTime + 0.05
+      this.sfxVolume * 0.2,
+      this.audioContext.currentTime + 0.2
     );
     gain.gain.exponentialRampToValueAtTime(
       0.001,
-      this.audioContext.currentTime + 0.35
+      this.audioContext.currentTime + 1.5
     );
 
     osc1.start();
     osc2.start();
-    osc1.stop(this.audioContext.currentTime + 0.35);
-    osc2.stop(this.audioContext.currentTime + 0.35);
+    osc1.stop(this.audioContext.currentTime + 1.5);
+    osc2.stop(this.audioContext.currentTime + 1.5);
   }
 
   // Level completion - celebratory but calm
@@ -428,40 +543,53 @@ class AudioSystem {
     });
   }
 
-  // Subtle orbital gliding sound for when electrons are moving
+  // Ethereal orbital gliding - like floating through space
   playOrbitalGlide(velocity = 1.0) {
     if (!this.isInitialized) return;
 
     const gain = this.audioContext.createGain();
     gain.connect(this.masterGain);
-    gain.gain.value = this.sfxVolume * 0.1 * Math.min(velocity, 1.0); // Very subtle, velocity-based
+    gain.gain.value = this.sfxVolume * 0.08 * Math.min(velocity, 1.0); // Very subtle, velocity-based
 
-    // Create a soft whoosh using filtered noise
-    const osc = this.audioContext.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.value = 80 + velocity * 40; // Low frequency that varies with speed
+    // Create ethereal floating sound with multiple harmonics
+    const osc1 = this.audioContext.createOscillator();
+    const osc2 = this.audioContext.createOscillator();
+    const filter1 = this.audioContext.createBiquadFilter();
+    const filter2 = this.audioContext.createBiquadFilter();
 
-    const filter = this.audioContext.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 200 + velocity * 100;
-    filter.Q.value = 2;
+    // Sine waves for pure, ethereal quality
+    osc1.type = "sine";
+    osc2.type = "sine";
+    osc1.frequency.value = 220 + velocity * 60; // Base frequency
+    osc2.frequency.value = (220 + velocity * 60) * 1.5; // Perfect fifth for harmony
 
-    // Very brief, subtle sound
-    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      gain.gain.value,
-      this.audioContext.currentTime + 0.02
-    );
+    // Heavy filtering for dreaminess
+    filter1.type = "lowpass";
+    filter1.frequency.value = 400 + velocity * 200;
+    filter1.Q.value = 3;
+
+    filter2.type = "bandpass";
+    filter2.frequency.value = 600 + velocity * 300;
+    filter2.Q.value = 5;
+
+    // Breathing envelope
+    const now = this.audioContext.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(gain.gain.value, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(
       0.001,
-      this.audioContext.currentTime + 0.15
+      now + 0.3 + Math.random() * 0.2
     );
 
-    osc.connect(filter);
-    filter.connect(gain);
+    osc1.connect(filter1);
+    osc2.connect(filter2);
+    filter1.connect(gain);
+    filter2.connect(gain);
 
-    osc.start();
-    osc.stop(this.audioContext.currentTime + 0.15);
+    osc1.start();
+    osc2.start();
+    osc1.stop(now + 0.5);
+    osc2.stop(now + 0.5);
   }
 
   // Time running out warning sound
