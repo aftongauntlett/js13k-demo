@@ -12,6 +12,10 @@ const electronJs = fs.readFileSync(
   path.join(__dirname, "../src/components/Electron.js"),
   "utf8"
 );
+const tutorialJs = fs.readFileSync(
+  path.join(__dirname, "../src/components/Tutorial.js"),
+  "utf8"
+);
 const inputJs = fs.readFileSync(
   path.join(__dirname, "../src/systems/InputSystem.js"),
   "utf8"
@@ -29,6 +33,8 @@ const gameJs = fs.readFileSync(path.join(__dirname, "../src/Game.js"), "utf8");
 // Combine all JavaScript
 const allJs = `
 ${electronJs}
+
+${tutorialJs}
 
 ${inputJs}
 
