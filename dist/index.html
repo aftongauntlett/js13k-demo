@@ -44,7 +44,7 @@
     <script>
 // Simple electron with polarity-based physics
 class Electron {
-  constructor(x, y, type) {
+  constructor(x, y, type, audioSystem = null) {
     this.x = x;
     this.y = y;
     this.vx = (Math.random() - 0.5) * 2;
@@ -57,6 +57,7 @@ class Electron {
     this.inactive = false; // True when electron becomes grey/inactive
     this.inactiveTime = 0; // Time remaining inactive
     this.TAU = Math.PI * 2; // 2π constant for efficiency
+    this.audio = audioSystem; // Reference to audio system
   }
 
   // Handle boundary collisions for all scenarios
@@ -146,6 +147,12 @@ class Electron {
     this.x += this.vx;
     this.y += this.vy;
 
+    // Play subtle gliding sound based on velocity (only when moving fast enough)
+    let velocity = M.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (velocity > 2 && this.audio && M.random() < 0.03) { // 3% chance per frame when moving fast
+      this.audio.playOrbitalGlide(velocity / 10); // Normalize velocity for sound intensity
+    }
+
     // Get canvas bounds from orbital system
     let canvasWidth = orbitalSystem.canvas.width;
     let canvasHeight = orbitalSystem.canvas.height;
@@ -165,12 +172,18 @@ class Electron {
           let electronKnockedOut = orbitalSystem.hitOccupiedOrbital(orbital);
 
           if (electronKnockedOut) {
+            // Play knock out sound
+            if (this.audio) {
+              this.audio.playElectronKnockedOut();
+            }
+
             // Create a new electron to replace the knocked-out one
             // Spawn it near the orbital but with some random velocity
             let newElectron = new Electron(
               orbital.x + (M.random() - 0.5) * 100,
               orbital.y + (M.random() - 0.5) * 100,
-              orbital.type
+              orbital.type,
+              this.audio
             );
             // Add some initial velocity to the new electron
             newElectron.vx = (M.random() - 0.5) * 4;
@@ -181,6 +194,11 @@ class Electron {
             // For now, we'll store it in a way the game can pick it up
             if (window.game) {
               window.game.electrons.push(newElectron);
+            }
+          } else {
+            // Just a collision, not a knockout
+            if (this.audio) {
+              this.audio.playOrbitalCollision();
             }
           }
 
@@ -204,6 +222,12 @@ class Electron {
               this.captured = true;
               this.x = orbital.x;
               this.y = orbital.y;
+
+              // Play capture sound
+              if (this.audio) {
+                this.audio.playElectronCapture();
+              }
+
               break;
             } else if (orbital.rotate) {
               // Rotating orbital but electron can't enter through gap - bounce
@@ -222,6 +246,11 @@ class Electron {
           this.mouseInfluenced = false;
           this.inactiveTime = 5; // Inactive for 5 seconds
           orbitalSystem.stunOrbital(orbital);
+
+          // Play wrong electron sound
+          if (this.audio) {
+            this.audio.playWrongElectron();
+          }
 
           // Bounce away from orbital
           let bounceX = odx / odist,
@@ -306,19 +335,23 @@ class InputSystem {
 
 // Simple atomic orbital system with progressive levels
 class OrbitalSystem {
-  constructor(canvas) {
+  constructor(canvas, audioSystem = null) {
     this.canvas = canvas;
     this.currentLevel = 0;
     this.score = 0;
     this.TAU = Math.PI * 2; // 2π constant for efficiency
     this.time = 0;
     this.levelTime = 45; // 45 seconds per level
+    this.audio = audioSystem; // Reference to audio system
+    this.timeWarningPlayed = false; // Track if time warning sound has been played
 
     // Orbital factory for consistent properties and smaller code
     const G3 = Math.PI / 3,
       G4 = Math.PI / 4,
       G5 = Math.PI / 5,
-      G6 = Math.PI / 6;
+      G6 = Math.PI / 6,
+      Gsharp4 = Math.PI / 3.5, // G# orbital gap size
+      A4 = Math.PI / 4.5; // A orbital gap size
 
     // Center coordinates for atomic structure
     const CX = this.canvas.width / 2;
@@ -336,75 +369,94 @@ class OrbitalSystem {
       shell: radius, // Track which shell this belongs to
     });
 
-    // Real atomic structures based on Bohr model
+    // Proper Bohr model shell radii and configurations
+    // K shell (n=1): max 2 electrons, radius ~80px
+    // L shell (n=2): max 8 electrons, radius ~140px
+    // M shell (n=3): max 18 electrons, radius ~200px
+    const K_SHELL = 80; // First shell (1s orbital)
+    const L_SHELL = 140; // Second shell (2s, 2p orbitals)
+    const M_SHELL = 200; // Third shell (3s, 3p, 3d orbitals)
+
+    // Real atomic structures based on proper Bohr model
     this.levels = [
       {
         name: "Hydrogen (H)",
         element: "H",
         atomicNumber: 1,
-        description: "1 electron in 1s orbital",
+        description: "1 electron in K shell (1s orbital)",
+        funFact:
+          "Hydrogen is the most abundant element in the universe! Each electron has an intrinsic quantum property called 'spin' - either spin-up (↑) or spin-down (↓).",
+        shells: [K_SHELL], // K shell only
         orbitals: [
-          shell(60, 0, "blue", G3, 0.025), // 1s¹
+          shell(K_SHELL, 0, "blue", G3, 0.025), // 1s¹ (spin-down)
         ],
       },
       {
         name: "Helium (He)",
         element: "He",
         atomicNumber: 2,
-        description: "2 electrons fill the first shell",
+        description: "2 electrons fill the K shell (1s orbital)",
+        funFact:
+          "Helium demonstrates the Pauli Exclusion Principle - each orbital can hold exactly 2 electrons, but they must have opposite spins (↑↓)!",
+        shells: [K_SHELL], // K shell only
         orbitals: [
-          shell(60, 0, "blue", G4, 0.022), // 1s¹
-          shell(60, Math.PI, "blue", G4, 0.022), // 1s²
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
         ],
       },
       {
         name: "Lithium (Li)",
         element: "Li",
         atomicNumber: 3,
-        description: "2 electrons in 1s, 1 electron in 2s",
+        description: "K shell filled (2e⁻), 1 electron in L shell",
+        funFact:
+          "Lithium's 3rd electron goes into the L shell because the K shell is full with its spin-paired electrons (↑↓)!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (1s² - complete)
-          shell(50, 0, "blue", G6, 0.018),
-          shell(50, Math.PI, "blue", G6, 0.018),
-          // Second shell (2s¹)
-          shell(100, Math.PI / 2, "orange", G3, 0.025),
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "orange", Gsharp4, 0.022), // 2s¹ (spin-up)
         ],
       },
       {
         name: "Carbon (C)",
         element: "C",
         atomicNumber: 6,
-        description: "1s² 2s² 2p²",
+        description: "K shell: 2e⁻, L shell: 4e⁻ (2s² 2p²)",
+        funFact:
+          "Carbon's 2p electrons follow Hund's Rule - they occupy separate orbitals with parallel spins (↑ ↑) before pairing up!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (1s² - complete, smaller, faster)
-          shell(45, 0, "blue", G6, 0.015),
-          shell(45, Math.PI, "blue", G6, 0.015),
-          // Second shell (2s² 2p²)
-          shell(90, 0, "orange", G4, 0.02), // 2s¹
-          shell(90, Math.PI, "orange", G4, 0.02), // 2s²
-          shell(90, Math.PI / 2, "orange", G4, 0.022), // 2p¹
-          shell(90, (3 * Math.PI) / 2, "orange", G4, 0.022), // 2p²
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "blue", Gsharp4, 0.02), // 2s¹ (spin-down)
+          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.02), // 2s² (spin-up)
+          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.02), // 2p¹ (spin-up)
+          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.02), // 2p² (spin-up)
         ],
       },
       {
         name: "Nitrogen (N)",
         element: "N",
         atomicNumber: 7,
-        description: "1s² 2s² 2p³",
+        description: "K shell: 2e⁻, L shell: 5e⁻ (2s² 2p³)",
+        funFact:
+          "Nitrogen has maximum unpaired electrons in its 2p orbitals (↑ ↑ ↑), making it very stable and unreactive!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (1s²)
-          shell(40, 0, "blue", G6, 0.012),
-          shell(40, Math.PI, "blue", G6, 0.012),
-          // Second shell (2s² 2p³)
-          shell(85, 0, "orange", G4, 0.018),
-          shell(85, Math.PI, "orange", G4, 0.018),
-          shell(85, Math.PI / 2, "orange", G5, 0.02),
-          shell(85, (3 * Math.PI) / 2, "orange", G5, 0.02),
-          shell(85, Math.PI / 4, "orange", G5, 0.022),
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "blue", Gsharp4, 0.022), // 2s¹ (spin-down)
+          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.022), // 2s² (spin-up)
+          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.022), // 2p¹ (spin-up)
+          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.022), // 2p² (spin-up)
+          shell(L_SHELL, Math.PI / 4, "orange", A4, 0.022), // 2p³ (spin-up)
         ],
       },
     ];
 
+    this.showingTip = false;
+    this.tipStartTime = 0;
     this.resetLevel();
   }
 
@@ -419,6 +471,7 @@ class OrbitalSystem {
       speed: o.speed,
       gap: o.gap,
       angle: 0,
+      electronAngle: 0, // Angle for electron orbiting around the orbital edge
       stunned: false,
       stunnedTime: 0,
       hitCount: 0,
@@ -428,6 +481,7 @@ class OrbitalSystem {
       shakeOffsetY: 0,
     }));
     this.time = 0;
+    this.timeWarningPlayed = false; // Reset time warning for new level
   }
 
   checkCompletion() {
@@ -438,10 +492,20 @@ class OrbitalSystem {
     const M = Math; // Shorter reference
     this.time += 1 / 60; // Assuming 60fps
 
+    // Auto-hide educational tip after 4 seconds
+    if (this.showingTip && this.time - this.tipStartTime > 4) {
+      this.showingTip = false;
+    }
+
     // Update rotating orbitals
     for (let orbital of this.orbitals) {
       if (orbital.rotate) {
         orbital.angle += orbital.speed;
+      }
+
+      // Update electron orbiting motion for occupied orbitals
+      if (orbital.occupied) {
+        orbital.electronAngle += orbital.speed * 3; // Electrons orbit faster than gap rotation
       }
 
       // Update stunned orbitals
@@ -487,6 +551,11 @@ class OrbitalSystem {
   stunOrbital(orbital) {
     orbital.stunned = true;
     orbital.stunnedTime = 3; // 3 seconds stun duration
+
+    // Play stun sound
+    if (this.audio) {
+      this.audio.playOrbitalStun();
+    }
   }
 
   // Handle hits on occupied orbitals
@@ -510,6 +579,11 @@ class OrbitalSystem {
   nextLevel() {
     if (this.checkCompletion()) {
       this.score += (this.currentLevel + 1) * 100;
+
+      // Show educational tip
+      this.showingTip = true;
+      this.tipStartTime = this.time;
+
       this.currentLevel++;
       if (this.currentLevel >= this.levels.length) {
         this.currentLevel = 0; // Loop back
@@ -518,6 +592,11 @@ class OrbitalSystem {
       return true;
     }
     return false;
+  }
+
+  // Close educational tip
+  closeTip() {
+    this.showingTip = false;
   }
 
   draw(ctx) {
@@ -557,103 +636,168 @@ class OrbitalSystem {
     ctx.restore();
 
     // Draw electron shells as concentric circles around nucleus
-    // Group orbitals by shell distance from center
-    const shells = {};
-    for (let orbital of this.orbitals) {
-      const shellRadius = orbital.shell;
-      if (!shells[shellRadius]) shells[shellRadius] = [];
-      shells[shellRadius].push(orbital);
-    }
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
 
-    // Draw each shell as a complete circle with electron positions
-    for (let shellRadius in shells) {
-      const shellOrbitals = shells[shellRadius];
-      const radius = parseInt(shellRadius);
-      
-      ctx.save();
-      
-      // Draw the shell orbital path (faint circle)
-      ctx.strokeStyle = "rgba(100, 150, 255, 0.2)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.arc(CX, CY, radius, 0, this.TAU);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      
-      // Draw electrons on this shell
-      for (let orbital of shellOrbitals) {
+    // Draw visible shell rings for the current element
+    const levelData = this.levels[this.currentLevel];
+    if (levelData.shells) {
+      for (let shellRadius of levelData.shells) {
         ctx.save();
-        
-        let c = colors[orbital.type] || colors.grey;
-        let occ = orbital.occupied;
-        let stunned = orbital.stunned;
-
-        if (occ) {
-          // Occupied position - show electron
-          ctx.shadowColor = c[0] + "0.8)";
-          ctx.shadowBlur = 15;
-
-          // Apply shake offset for occupied orbitals
-          let drawX = orbital.x + orbital.shakeOffsetX;
-          let drawY = orbital.y + orbital.shakeOffsetY;
-
-          let grad = ctx.createRadialGradient(
-            drawX, drawY, 0, drawX, drawY, 8
-          );
-          grad.addColorStop(0, c[1]);
-          grad.addColorStop(1, c[2]);
-
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(drawX, drawY, 8, 0, this.TAU);
-          ctx.fill();
-        } else {
-          // Available electron position with rotating gap
-          const angle = orbital.angle || 0;
-          const gapSize = orbital.gap;
-          
-          // Draw the available orbital spot as an arc with gap
-          ctx.translate(CX, CY);
-          ctx.rotate(angle);
-          
-          // Calculate the position on the shell for this orbital
-          const orbitalAngle = Math.atan2(orbital.y - CY, orbital.x - CX);
-          ctx.rotate(orbitalAngle);
-          
-          ctx.strokeStyle = stunned ? colors.grey : c[2];
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          
-          // Draw arc representing the available electron position
-          ctx.arc(0, 0, radius, -gapSize/2, gapSize/2);
-          ctx.stroke();
-          
-          // Draw gap indicators
-          ctx.strokeStyle = stunned ? "rgba(128,128,128,0.6)" : c[0] + "0.6)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          let r1 = radius - 5, r2 = radius + 5;
-          ctx.moveTo(r1 * Math.cos(gapSize/2), r1 * Math.sin(gapSize/2));
-          ctx.lineTo(r2 * Math.cos(gapSize/2), r2 * Math.sin(gapSize/2));
-          ctx.moveTo(r1 * Math.cos(-gapSize/2), r1 * Math.sin(-gapSize/2));
-          ctx.lineTo(r2 * Math.cos(-gapSize/2), r2 * Math.sin(-gapSize/2));
-          ctx.stroke();
-        }
-        
+        ctx.strokeStyle = "rgba(100, 150, 255, 0.25)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, shellRadius, 0, this.TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
       }
-      
+    }
+
+    // Draw orbital targets on each shell
+    for (let orbital of this.orbitals) {
+      ctx.save();
+
+      let c = colors[orbital.type] || colors.grey;
+      let occ = orbital.occupied;
+      let stunned = orbital.stunned;
+
+      // Draw orbital boundary (always visible as outline)
+      const orbitalRadius = 20; // Larger, more visible orbital size
+
+      // Orbital outline ring - colored based on orbital type
+      if (occ) {
+        // Occupied orbitals keep the faint colored outline
+        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.4)" : c[0] + "0.4)";
+      } else {
+        // Empty orbitals have a more visible colored outline to show which electron type is needed
+        ctx.strokeStyle = stunned ? "rgba(120,120,120,0.6)" : c[0] + "0.7)";
+      }
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
+      ctx.stroke();
+
+      // Subtle orbital field background
+      let fieldGrad = ctx.createRadialGradient(
+        orbital.x,
+        orbital.y,
+        0,
+        orbital.x,
+        orbital.y,
+        orbitalRadius
+      );
+      fieldGrad.addColorStop(
+        0,
+        stunned ? "rgba(100,100,100,0.05)" : c[0] + "0.05)"
+      );
+      fieldGrad.addColorStop(1, "rgba(0,0,0,0)");
+
+      ctx.fillStyle = fieldGrad;
+      ctx.beginPath();
+      ctx.arc(orbital.x, orbital.y, orbitalRadius, 0, this.TAU);
+      ctx.fill();
+
+      if (occ) {
+        // Occupied orbital - electron orbiting around the edge
+        const electronOrbitRadius = orbitalRadius - 2; // Slightly inside the orbital boundary
+
+        // Calculate electron position
+        let electronX =
+          orbital.x + Math.cos(orbital.electronAngle) * electronOrbitRadius;
+        let electronY =
+          orbital.y + Math.sin(orbital.electronAngle) * electronOrbitRadius;
+
+        // Apply shake offset to the entire orbital system
+        electronX += orbital.shakeOffsetX;
+        electronY += orbital.shakeOffsetY;
+
+        // Draw orbiting electron
+        ctx.shadowColor = c[0] + "0.8)";
+        ctx.shadowBlur = 8;
+
+        let grad = ctx.createRadialGradient(
+          electronX,
+          electronY,
+          0,
+          electronX,
+          electronY,
+          6
+        );
+        grad.addColorStop(0, "white");
+        grad.addColorStop(0.4, c[1]);
+        grad.addColorStop(1, c[2]);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(electronX, electronY, 6, 0, this.TAU);
+        ctx.fill();
+
+        // Optional: Draw faint orbital trail
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = c[0] + "0.2)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.arc(orbital.x, orbital.y, electronOrbitRadius, 0, this.TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Available orbital - show rotating entry gap
+        ctx.translate(orbital.x, orbital.y);
+        ctx.rotate(orbital.angle);
+
+        // Entry gap in the orbital ring
+        ctx.strokeStyle = stunned
+          ? "rgba(200,200,200,0.8)"
+          : c[1].replace("rgb", "rgba").replace(")", ",0.9)");
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        let g = orbital.gap / 2;
+        ctx.arc(0, 0, orbitalRadius, g, this.TAU - g);
+        ctx.stroke();
+
+        // Entry gap indicators (pointing inward)
+        ctx.strokeStyle = stunned
+          ? "rgba(160,160,160,0.9)"
+          : c[1].replace("rgb", "rgba").replace(")", ",0.8)");
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(orbitalRadius * Math.cos(g), orbitalRadius * Math.sin(g));
+        ctx.lineTo(
+          (orbitalRadius - 6) * Math.cos(g),
+          (orbitalRadius - 6) * Math.sin(g)
+        );
+        ctx.moveTo(orbitalRadius * Math.cos(-g), orbitalRadius * Math.sin(-g));
+        ctx.lineTo(
+          (orbitalRadius - 6) * Math.cos(-g),
+          (orbitalRadius - 6) * Math.sin(-g)
+        );
+        ctx.stroke();
+
+        // Center indicator dot
+        let pulse = 0.3 + 0.3 * Math.sin(this.time * 2.5);
+        ctx.fillStyle = stunned
+          ? `rgba(140,140,140,${pulse})`
+          : c[0] + `${pulse})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, this.TAU);
+        ctx.fill();
+      }
+
       ctx.restore();
     }
 
     // UI Constants
-    const F16 = "16px Arial",
-      F18 = "18px 'Courier New', monospace",
-      F12 = "12px Arial";
-    const WHITE = "white",
-      CYAN = "rgb(0, 255, 255)",
-      YELLOW = "rgb(255, 255, 100)";
+    const F16 = "16px Arial";
+    const F18 = "18px 'Courier New', monospace";
+    const F12 = "12px Arial";
+    const WHITE = "white";
+    const CYAN = "rgb(0, 255, 255)";
+    const YELLOW = "rgb(255, 255, 100)";
 
     const currentLevel = this.levels[this.currentLevel];
 
@@ -677,38 +821,31 @@ class OrbitalSystem {
     ctx.textAlign = "left";
     ctx.restore();
 
-    // Enhanced score text with glow effect
-    ctx.save();
+    // Score text with muted styling like element name
+    ctx.fillStyle = WHITE;
     ctx.font = F18;
-    ctx.textAlign = "left";
-
-    // Glow effect for score
-    ctx.shadowColor = CYAN;
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = CYAN;
     ctx.fillText(`SCORE: ${this.score}`, 20, 55);
 
-    ctx.restore();
-
-    // Electron configuration description
-    ctx.fillStyle = YELLOW;
-    ctx.font = F12;
-    ctx.fillText(currentLevel.description, 20, 75);
-
     ctx.fillStyle = WHITE;
-    ctx.font = F16;
+    ctx.font = F18;
     ctx.fillText(
       `Electrons: ${this.orbitals.filter((o) => o.occupied).length}/${
         this.orbitals.length
       }`,
       20,
-      95
+      75
     );
 
     // Timer display
     let timeLeft = Math.max(0, this.levelTime - this.time);
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 115);
+    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 95);
+
+    // Play time warning sound when 10 seconds left (only once per level)
+    if (timeLeft <= 10 && timeLeft > 0 && !this.timeWarningPlayed && this.audio) {
+      this.audio.playTimeWarning();
+      this.timeWarningPlayed = true;
+    }
 
     if (this.checkCompletion()) {
       ctx.save();
@@ -747,6 +884,632 @@ class OrbitalSystem {
       ctx.fillText("TIME'S UP! CLICK TO RETRY", this.canvas.width / 2, 150);
       ctx.restore();
     }
+
+    // Educational tip overlay
+    if (this.showingTip) {
+      const prevLevel =
+        this.currentLevel === 0
+          ? this.levels.length - 1
+          : this.currentLevel - 1;
+      const completedLevel = this.levels[prevLevel];
+
+      // Semi-transparent overlay
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // Educational tip box
+      const boxWidth = 500;
+      const boxHeight = 200;
+      const boxX = (this.canvas.width - boxWidth) / 2;
+      const boxY = (this.canvas.height - boxHeight) / 2;
+
+      // Tip box background
+      ctx.fillStyle = "rgba(20, 30, 50, 0.95)";
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+      // Tip box border
+      ctx.strokeStyle = "rgb(100, 150, 255)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+      ctx.textAlign = "center";
+
+      // Congratulations header
+      ctx.fillStyle = "rgb(255, 255, 100)";
+      ctx.font = "24px 'Courier New', monospace";
+      ctx.fillText("ELEMENT BUILT!", this.canvas.width / 2, boxY + 40);
+
+      // Element details
+      ctx.fillStyle = "rgb(100, 200, 255)";
+      ctx.font = "20px 'Courier New', monospace";
+      ctx.fillText(
+        `${completedLevel.name} (${completedLevel.element})`,
+        this.canvas.width / 2,
+        boxY + 70
+      );
+
+      ctx.fillStyle = "rgb(200, 200, 200)";
+      ctx.font = "16px Arial";
+      ctx.fillText(
+        `Atomic Number: ${completedLevel.atomicNumber}`,
+        this.canvas.width / 2,
+        boxY + 95
+      );
+
+      // Fun fact
+      ctx.fillStyle = "rgb(255, 200, 100)";
+      ctx.font = "14px Arial";
+
+      // Word wrap the fun fact
+      const words = completedLevel.funFact.split(" ");
+      let line = "";
+      let lineY = boxY + 125;
+
+      for (let word of words) {
+        const testLine = line + word + " ";
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > boxWidth - 40 && line !== "") {
+          ctx.fillText(line, this.canvas.width / 2, lineY);
+          line = word + " ";
+          lineY += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, this.canvas.width / 2, lineY);
+
+      // Auto-close instruction
+      ctx.fillStyle = "rgba(150, 150, 150, 0.8)";
+      ctx.font = "12px Arial";
+      ctx.fillText(
+        "(Auto-closes in " +
+          Math.ceil(4 - (this.time - this.tipStartTime)) +
+          "s | Click anywhere or press ESC to close)",
+        this.canvas.width / 2,
+        boxY + boxHeight - 15
+      );
+
+      ctx.restore();
+    }
+  }
+}
+
+
+// Futuristic electronic audio system using Web Audio API
+class AudioSystem {
+  constructor() {
+    this.audioContext = null;
+    this.masterGain = null;
+    this.backgroundMusic = null;
+    this.isInitialized = false;
+    this.isMuted = false;
+
+    // Audio settings
+    this.volume = 0.4;
+    this.musicVolume = 0.7; // Increased significantly to make music more audible
+    this.sfxVolume = 0.4;
+  }
+
+  // Initialize audio context (must be called after user interaction)
+  async init() {
+    if (this.isInitialized) return;
+
+    try {
+      this.audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
+      this.masterGain.gain.value = this.volume;
+
+      this.isInitialized = true;
+      console.log("Audio system initialized");
+
+      // Start ambient background music
+      this.startBackgroundMusic();
+    } catch (error) {
+      console.warn("Audio initialization failed:", error);
+    }
+  }
+
+  // Generate ultra-chill ambient background music
+  startBackgroundMusic() {
+    if (!this.isInitialized || this.backgroundMusic) return;
+
+    const musicGain = this.audioContext.createGain();
+    musicGain.connect(this.masterGain);
+    musicGain.gain.value = this.musicVolume;
+
+    // Simple, peaceful chord progression - all major/consonant chords
+    // Using C - F - Am - G progression (very stable and calming)
+    const chordProgression = [
+      [130.81, 164.81, 196.0], // C major (C-E-G) - peaceful home
+      [174.61, 220.0, 261.63], // F major (F-A-C) - warm and stable
+      [220.0, 261.63, 329.63], // A minor (A-C-E) - gentle and soft
+      [196.0, 246.94, 293.66], // G major (G-B-D) - uplifting resolution
+    ];
+
+    const oscillators = [];
+    let currentChord = 0;
+    let nextChordTime = this.audioContext.currentTime;
+
+    // Function to play very soft, warm chords
+    const playChord = (frequencies, startTime, duration) => {
+      frequencies.forEach((freq, index) => {
+        const osc = this.audioContext.createOscillator();
+        const oscGain = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+
+        // Pure sine waves for maximum smoothness
+        osc.type = "sine";
+        osc.frequency.value = freq * 0.5; // Low octave for warmth
+
+        // Very gentle low-pass filter to remove any harsh frequencies
+        filter.type = "lowpass";
+        filter.frequency.value = 800; // Increased from 400 to let more harmonics through
+        filter.Q.value = 0.1; // Very gentle filtering
+
+        // Extremely gentle fade in/out - no sudden changes
+        oscGain.gain.setValueAtTime(0, startTime);
+        oscGain.gain.linearRampToValueAtTime(0.15, startTime + 2); // Increased from 0.08 to be more audible
+        oscGain.gain.setValueAtTime(0.15, startTime + duration - 2);
+        oscGain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        osc.connect(filter);
+        filter.connect(oscGain);
+        oscGain.connect(musicGain);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      });
+    };
+
+    // Schedule chord progression with longer, more relaxed timing
+    const scheduleNextChord = () => {
+      const chordDuration = 8; // 8 seconds per chord for maximum calm
+      playChord(chordProgression[currentChord], nextChordTime, chordDuration);
+
+      console.log(`Playing chord ${currentChord + 1} at time ${nextChordTime}`);
+
+      currentChord = (currentChord + 1) % chordProgression.length;
+      nextChordTime += chordDuration;
+
+      // Schedule next chord
+      setTimeout(() => scheduleNextChord(), (chordDuration - 1.5) * 1000);
+    }; // Remove the high ambient layer that might be grating
+    // Just keep one very subtle bass pad
+    const bassPad = this.audioContext.createOscillator();
+    const bassPadGain = this.audioContext.createGain();
+    const bassPadFilter = this.audioContext.createBiquadFilter();
+
+    bassPad.type = "triangle";
+    bassPad.frequency.value = 65.41; // Low C
+
+    bassPadFilter.type = "lowpass";
+    bassPadFilter.frequency.value = 200; // Very low
+    bassPadFilter.Q.value = 0.1;
+
+    bassPadGain.gain.value = 0.01; // Increased from 0.002 to be more audible
+
+    bassPad.connect(bassPadFilter);
+    bassPadFilter.connect(bassPadGain);
+    bassPadGain.connect(musicGain);
+
+    bassPad.start();
+    oscillators.push(bassPad);
+
+    // Very subtle, slow LFO for gentle movement
+    const lfo = this.audioContext.createOscillator();
+    const lfoGain = this.audioContext.createGain();
+    lfo.type = "sine";
+    lfo.frequency.value = 0.03; // Extremely slow
+    lfoGain.gain.value = 15; // Very gentle modulation
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(bassPadFilter.frequency);
+    lfo.start();
+
+    // Start the chord progression
+    scheduleNextChord();
+
+    this.backgroundMusic = { oscillators, lfo, musicGain };
+    console.log("Ultra-chill ambient background music started");
+  }
+
+  // Electron capture sound - soft, crystalline
+  playElectronCapture() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.5;
+
+    // Soft crystal-like chime using multiple harmonics
+    const frequencies = [523.25, 659.25, 783.99]; // C major triad high octave
+
+    frequencies.forEach((freq, index) => {
+      const osc = this.audioContext.createOscillator();
+      const oscGain = this.audioContext.createGain();
+      const filter = this.audioContext.createBiquadFilter();
+
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+
+      filter.type = "lowpass";
+      filter.frequency.value = 3000;
+      filter.Q.value = 2;
+
+      const startTime = this.audioContext.currentTime + index * 0.05;
+
+      oscGain.gain.setValueAtTime(0, startTime);
+      oscGain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+
+      osc.connect(filter);
+      filter.connect(oscGain);
+      oscGain.connect(gain);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    });
+  }
+
+  // Wrong electron type collision - soft negative feedback
+  playWrongElectron() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+
+    // Soft dissonant chord that resolves downward
+    const osc1 = this.audioContext.createOscillator();
+    const osc2 = this.audioContext.createOscillator();
+
+    osc1.type = "triangle";
+    osc1.frequency.setValueAtTime(349.23, this.audioContext.currentTime); // F
+    osc1.frequency.exponentialRampToValueAtTime(
+      261.63,
+      this.audioContext.currentTime + 0.3
+    ); // to C
+
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(369.99, this.audioContext.currentTime); // F#
+    osc2.frequency.exponentialRampToValueAtTime(
+      246.94,
+      this.audioContext.currentTime + 0.3
+    ); // to B
+
+    const osc1Gain = this.audioContext.createGain();
+    const osc2Gain = this.audioContext.createGain();
+
+    osc1Gain.gain.value = 0.15;
+    osc2Gain.gain.value = 0.15;
+
+    osc1.connect(osc1Gain);
+    osc2.connect(osc2Gain);
+    osc1Gain.connect(gain);
+    osc2Gain.connect(gain);
+
+    // Soft envelope
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(
+      this.sfxVolume * 0.3,
+      this.audioContext.currentTime + 0.05
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.audioContext.currentTime + 0.35
+    );
+
+    osc1.start();
+    osc2.start();
+    osc1.stop(this.audioContext.currentTime + 0.35);
+    osc2.stop(this.audioContext.currentTime + 0.35);
+  }
+
+  // Level completion - celebratory but calm
+  playLevelComplete() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.8;
+
+    // Ascending arpeggio
+    const frequencies = [440, 554.37, 659.25, 880]; // A major chord progression
+
+    frequencies.forEach((freq, index) => {
+      const osc = this.audioContext.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      const noteGain = this.audioContext.createGain();
+      noteGain.connect(gain);
+
+      const startTime = this.audioContext.currentTime + index * 0.1;
+      const duration = 0.4;
+
+      noteGain.gain.setValueAtTime(0, startTime);
+      noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(noteGain);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    });
+  }
+
+  // Electron knocked out - gentle thud
+  playElectronKnockedOut() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+
+    // Low frequency thud with some harmonics
+    const osc1 = this.audioContext.createOscillator();
+    const osc2 = this.audioContext.createOscillator();
+
+    osc1.type = "sine";
+    osc1.frequency.value = 120;
+
+    osc2.type = "triangle";
+    osc2.frequency.value = 60;
+
+    const osc1Gain = this.audioContext.createGain();
+    const osc2Gain = this.audioContext.createGain();
+
+    osc1Gain.gain.value = 0.4;
+    osc2Gain.gain.value = 0.6;
+
+    osc1.connect(osc1Gain);
+    osc2.connect(osc2Gain);
+    osc1Gain.connect(gain);
+    osc2Gain.connect(gain);
+
+    // Quick thud envelope
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(
+      this.sfxVolume * 0.5,
+      this.audioContext.currentTime + 0.01
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.audioContext.currentTime + 0.15
+    );
+
+    osc1.start();
+    osc2.start();
+    osc1.stop(this.audioContext.currentTime + 0.15);
+    osc2.stop(this.audioContext.currentTime + 0.15);
+  }
+
+  // Orbital stun effect - electronic glitch
+  playOrbitalStun() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.3;
+
+    // Create a brief electronic glitch sound
+    const noise = this.audioContext.createBufferSource();
+    const buffer = this.audioContext.createBuffer(1, 4410, 44100); // 0.1 seconds
+    const data = buffer.getChannelData(0);
+
+    // Generate filtered noise
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 1000);
+    }
+
+    noise.buffer = buffer;
+
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 5;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    noise.start();
+  }
+
+  // Hover/UI feedback - subtle beep
+  playUIHover() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+
+    const osc = this.audioContext.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 800;
+
+    // Very brief and quiet
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(
+      this.sfxVolume * 0.2,
+      this.audioContext.currentTime + 0.01
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.audioContext.currentTime + 0.05
+    );
+
+    osc.connect(gain);
+    osc.start();
+    osc.stop(this.audioContext.currentTime + 0.05);
+  }
+
+  // Orbital collision - when hitting occupied orbital without knocking out
+  playOrbitalCollision() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+
+    // Similar to wrong electron but shorter and less dissonant
+    const osc = this.audioContext.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(330, this.audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(
+      280,
+      this.audioContext.currentTime + 0.1
+    );
+
+    // Quick bounce sound
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(
+      this.sfxVolume * 0.3,
+      this.audioContext.currentTime + 0.01
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      this.audioContext.currentTime + 0.12
+    );
+
+    osc.connect(gain);
+    osc.start();
+    osc.stop(this.audioContext.currentTime + 0.12);
+  }
+
+  // Game over sound - when timer runs out
+  playGameOver() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.6;
+
+    // Descending minor chord - melancholy but not harsh
+    const frequencies = [523.25, 415.3, 349.23, 261.63]; // C - Ab - F - C (minor)
+
+    frequencies.forEach((freq, index) => {
+      const osc = this.audioContext.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+
+      const noteGain = this.audioContext.createGain();
+      noteGain.connect(gain);
+
+      const startTime = this.audioContext.currentTime + index * 0.15;
+      const duration = 0.6;
+
+      noteGain.gain.setValueAtTime(0, startTime);
+      noteGain.gain.linearRampToValueAtTime(0.25, startTime + 0.1);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(noteGain);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    });
+  }
+
+  // Subtle orbital gliding sound for when electrons are moving
+  playOrbitalGlide(velocity = 1.0) {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.1 * Math.min(velocity, 1.0); // Very subtle, velocity-based
+
+    // Create a soft whoosh using filtered noise
+    const osc = this.audioContext.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = 80 + velocity * 40; // Low frequency that varies with speed
+
+    const filter = this.audioContext.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 200 + velocity * 100;
+    filter.Q.value = 2;
+
+    // Very brief, subtle sound
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(gain.gain.value, this.audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15);
+
+    osc.connect(filter);
+    filter.connect(gain);
+
+    osc.start();
+    osc.stop(this.audioContext.currentTime + 0.15);
+  }
+
+  // Time running out warning sound
+  playTimeWarning() {
+    if (!this.isInitialized) return;
+
+    const gain = this.audioContext.createGain();
+    gain.connect(this.masterGain);
+    gain.gain.value = this.sfxVolume * 0.4;
+
+    // Urgent but not harsh warning tone
+    const osc1 = this.audioContext.createOscillator();
+    const osc2 = this.audioContext.createOscillator();
+    
+    osc1.type = "triangle";
+    osc2.type = "triangle";
+    osc1.frequency.value = 440; // A4
+    osc2.frequency.value = 554; // C#5 - creates tension
+
+    // Pulsing envelope for urgency
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.15);
+    gain.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.25);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+
+    osc1.start();
+    osc2.start();
+    osc1.stop(this.audioContext.currentTime + 0.5);
+    osc2.stop(this.audioContext.currentTime + 0.5);
+  }
+
+  // Toggle mute
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.isMuted ? 0 : this.volume;
+    }
+    return this.isMuted;
+  }
+
+  // Cleanup
+  destroy() {
+    if (this.backgroundMusic) {
+      // Stop all oscillators (both chord and ambient layers)
+      this.backgroundMusic.oscillators.forEach((osc) => {
+        if (osc && osc.stop) {
+          try {
+            osc.stop();
+          } catch (e) {
+            // Oscillator may already be stopped
+          }
+        }
+      });
+
+      if (this.backgroundMusic.lfo) {
+        try {
+          this.backgroundMusic.lfo.stop();
+        } catch (e) {
+          // LFO may already be stopped
+        }
+      }
+
+      this.backgroundMusic = null;
+    }
+
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+
+    this.isInitialized = false;
   }
 }
 
@@ -759,7 +1522,9 @@ class Game {
 
     // Systems
     this.input = new InputSystem(this.canvas);
-    this.orbitals = new OrbitalSystem(this.canvas);
+    this.audio = new AudioSystem();
+    this.orbitals = new OrbitalSystem(this.canvas, this.audio);
+    this.tutorial = new Tutorial(this);
 
     // Electrons
     this.electrons = [];
@@ -769,19 +1534,64 @@ class Game {
     this.particles = [];
     this.spawnParticles();
 
-    // Click handler for level progression/restart
-    this.canvas.addEventListener("click", () => {
+    // Click handler for level progression/restart and tip closing
+    this.canvas.addEventListener("click", async () => {
+      // Initialize audio on first user interaction
+      if (!this.audio.isInitialized) {
+        await this.audio.init();
+      }
+
+      // Check if educational tip is showing
+      if (this.orbitals.showingTip) {
+        this.orbitals.closeTip();
+        this.audio.playUIHover();
+        return;
+      }
+
       let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
       if (this.orbitals.checkCompletion()) {
+        this.audio.playLevelComplete();
         this.orbitals.nextLevel();
         this.spawnElectrons();
       } else if (timeLeft <= 0) {
+        this.audio.playGameOver();
         this.orbitals.resetLevel();
         this.spawnElectrons();
       }
     });
 
+    // Keyboard handler for closing tips with Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (this.orbitals.showingTip) {
+          this.orbitals.closeTip();
+        } else {
+          // Show tutorial when Escape is pressed and no tip is showing
+          this.tutorial.show();
+        }
+      } else if (e.key === "m" || e.key === "M") {
+        // Toggle mute with 'M' key
+        const isMuted = this.audio.toggleMute();
+        console.log(isMuted ? "Audio muted" : "Audio unmuted");
+      } else if (e.key === "r" || e.key === "R") {
+        // Restart from level 1 with 'R' key
+        this.orbitals.currentLevel = 0;
+        this.orbitals.score = 0;
+        this.orbitals.resetLevel();
+        this.spawnElectrons();
+        this.audio.playUIHover();
+        console.log("Restarted from level 1");
+      }
+    });
+
     this.gameLoop();
+
+    // Show tutorial on first visit
+    setTimeout(() => {
+      if (this.tutorial.shouldShow()) {
+        this.tutorial.show();
+      }
+    }, 1000); // Small delay to let the game load
   }
 
   spawnElectrons() {
@@ -795,7 +1605,8 @@ class Game {
           new Electron(
             Math.random() * (this.canvas.width - 100) + 50,
             Math.random() * (this.canvas.height - 100) + 50,
-            type
+            type,
+            this.audio
           )
         );
       }
@@ -859,26 +1670,31 @@ class Game {
     }
     this.ctx.restore();
 
-    // Draw cursor glow
-    this.ctx.save();
-    this.ctx.shadowColor = "rgba(100,150,255,0.6)";
-    this.ctx.shadowBlur = 20;
-    this.ctx.fillStyle = "rgba(100,150,255,0.2)";
-    this.ctx.beginPath();
-    this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.restore();
+    // Draw cursor glow (only when tip is not showing)
+    if (!this.orbitals.showingTip) {
+      this.ctx.save();
+      this.ctx.shadowColor = "rgba(100,150,255,0.6)";
+      this.ctx.shadowBlur = 20;
+      this.ctx.fillStyle = "rgba(100,150,255,0.2)";
+      this.ctx.beginPath();
+      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    }
 
     this.orbitals.draw(this.ctx);
 
-    for (let electron of this.electrons) {
-      electron.draw(this.ctx);
+    // Draw electrons (only when tip is not showing)
+    if (!this.orbitals.showingTip) {
+      for (let electron of this.electrons) {
+        electron.draw(this.ctx);
+      }
     }
 
     this.ctx.fillStyle = "rgba(255,255,255,0.7)";
     this.ctx.font = "12px Arial";
     this.ctx.fillText(
-      "Orange repel, blue attract | Guide electrons through rotating gaps with mouse",
+      "Spin-up (↑) repel, spin-down (↓) attract | M: Mute | R: Restart | Esc: Help",
       20,
       this.canvas.height - 20
     );
@@ -888,6 +1704,12 @@ class Game {
     this.update();
     this.draw();
     requestAnimationFrame(() => this.gameLoop());
+  }
+
+  // Method called by tutorial when ready to start
+  start() {
+    // Game is already running, this is just for tutorial integration
+    console.log("Game started from tutorial");
   }
 }
 

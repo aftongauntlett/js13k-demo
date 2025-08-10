@@ -43,10 +43,12 @@
 
     <!-- Component Scripts -->
     <script src="components/Electron.js"></script>
+    <script src="components/Tutorial.js"></script>
 
     <!-- System Scripts -->
     <script src="systems/InputSystem.js"></script>
     <script src="systems/OrbitalSystem.js"></script>
+    <script src="systems/AudioSystem.js"></script>
 
     <!-- Main Game -->
     <script src="Game.js"></script>
@@ -55,6 +57,7 @@
     <script>
       // Start the game
       window.game = new Game();
+      window.tutorial = window.game.tutorial; // Make tutorial globally accessible
     </script>
   </body>
 </html>

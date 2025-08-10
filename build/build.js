@@ -20,6 +20,10 @@ const orbitalSystemJs = fs.readFileSync(
   path.join(__dirname, "../src/systems/OrbitalSystem.js"),
   "utf8"
 );
+const audioSystemJs = fs.readFileSync(
+  path.join(__dirname, "../src/systems/AudioSystem.js"),
+  "utf8"
+);
 const gameJs = fs.readFileSync(path.join(__dirname, "../src/Game.js"), "utf8");
 
 // Combine all JavaScript
@@ -29,6 +33,8 @@ ${electronJs}
 ${inputJs}
 
 ${orbitalSystemJs}
+
+${audioSystemJs}
 
 ${gameJs}
 

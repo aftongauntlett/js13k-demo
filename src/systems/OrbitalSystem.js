@@ -1,18 +1,22 @@
 // Simple atomic orbital system with progressive levels
 class OrbitalSystem {
-  constructor(canvas) {
+  constructor(canvas, audioSystem = null) {
     this.canvas = canvas;
     this.currentLevel = 0;
     this.score = 0;
     this.TAU = Math.PI * 2; // 2π constant for efficiency
     this.time = 0;
     this.levelTime = 45; // 45 seconds per level
+    this.audio = audioSystem; // Reference to audio system
+    this.timeWarningPlayed = false; // Track if time warning sound has been played
 
     // Orbital factory for consistent properties and smaller code
     const G3 = Math.PI / 3,
       G4 = Math.PI / 4,
       G5 = Math.PI / 5,
-      G6 = Math.PI / 6;
+      G6 = Math.PI / 6,
+      Gsharp4 = Math.PI / 3.5, // G# orbital gap size
+      A4 = Math.PI / 4.5; // A orbital gap size
 
     // Center coordinates for atomic structure
     const CX = this.canvas.width / 2;
@@ -30,86 +34,88 @@ class OrbitalSystem {
       shell: radius, // Track which shell this belongs to
     });
 
-    // Real atomic structures based on Bohr model
+    // Proper Bohr model shell radii and configurations
+    // K shell (n=1): max 2 electrons, radius ~80px
+    // L shell (n=2): max 8 electrons, radius ~140px
+    // M shell (n=3): max 18 electrons, radius ~200px
+    const K_SHELL = 80; // First shell (1s orbital)
+    const L_SHELL = 140; // Second shell (2s, 2p orbitals)
+    const M_SHELL = 200; // Third shell (3s, 3p, 3d orbitals)
+
+    // Real atomic structures based on proper Bohr model
     this.levels = [
       {
         name: "Hydrogen (H)",
         element: "H",
         atomicNumber: 1,
-        description: "1 electron in 1s orbital",
+        description: "1 electron in K shell (1s orbital)",
         funFact:
-          "Hydrogen is the most abundant element in the universe, making up ~75% of all matter!",
-        shells: [60], // K shell only
+          "Hydrogen is the most abundant element in the universe! Each electron has an intrinsic quantum property called 'spin' - either spin-up (↑) or spin-down (↓).",
+        shells: [K_SHELL], // K shell only
         orbitals: [
-          shell(60, 0, "blue", G3, 0.025), // 1s¹
+          shell(K_SHELL, 0, "blue", G3, 0.025), // 1s¹ (spin-down)
         ],
       },
       {
         name: "Helium (He)",
         element: "He",
         atomicNumber: 2,
-        description: "2 electrons fill the first shell",
+        description: "2 electrons fill the K shell (1s orbital)",
         funFact:
-          "Helium is so light it escapes Earth's gravity! That's why helium balloons float.",
-        shells: [60], // K shell only
+          "Helium demonstrates the Pauli Exclusion Principle - each orbital can hold exactly 2 electrons, but they must have opposite spins (↑↓)!",
+        shells: [K_SHELL], // K shell only
         orbitals: [
-          shell(60, 0, "blue", G4, 0.022), // 1s¹
-          shell(60, Math.PI, "blue", G4, 0.022), // 1s²
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
         ],
       },
       {
         name: "Lithium (Li)",
         element: "Li",
         atomicNumber: 3,
-        description: "2 electrons in 1s, 1 electron in 2s",
+        description: "K shell filled (2e⁻), 1 electron in L shell",
         funFact:
-          "Lithium powers your phone! It's the key element in rechargeable batteries.",
-        shells: [50, 110], // K and L shells
+          "Lithium's 3rd electron goes into the L shell because the K shell is full with its spin-paired electrons (↑↓)!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (K - 1s² - complete)
-          shell(50, 0, "blue", G6, 0.018),
-          shell(50, Math.PI, "blue", G6, 0.018),
-          // Second shell (L - 2s¹)
-          shell(110, 0, "orange", G3, 0.025),
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "orange", Gsharp4, 0.022), // 2s¹ (spin-up)
         ],
       },
       {
         name: "Carbon (C)",
         element: "C",
         atomicNumber: 6,
-        description: "1s² 2s² 2p²",
+        description: "K shell: 2e⁻, L shell: 4e⁻ (2s² 2p²)",
         funFact:
-          "Carbon is the backbone of all life! Every living thing contains carbon compounds.",
-        shells: [45, 105], // K and L shells
+          "Carbon's 2p electrons follow Hund's Rule - they occupy separate orbitals with parallel spins (↑ ↑) before pairing up!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (K - 1s² - complete, smaller, faster)
-          shell(45, 0, "blue", G6, 0.015),
-          shell(45, Math.PI, "blue", G6, 0.015),
-          // Second shell (L - 2s² 2p²) - distributed around the shell
-          shell(105, 0, "orange", G4, 0.02), // 2s¹
-          shell(105, Math.PI, "orange", G4, 0.02), // 2s²
-          shell(105, Math.PI / 2, "orange", G4, 0.022), // 2p¹
-          shell(105, (3 * Math.PI) / 2, "orange", G4, 0.022), // 2p²
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "blue", Gsharp4, 0.02), // 2s¹ (spin-down)
+          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.02), // 2s² (spin-up)
+          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.02), // 2p¹ (spin-up)
+          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.02), // 2p² (spin-up)
         ],
       },
       {
         name: "Nitrogen (N)",
         element: "N",
         atomicNumber: 7,
-        description: "1s² 2s² 2p³",
+        description: "K shell: 2e⁻, L shell: 5e⁻ (2s² 2p³)",
         funFact:
-          "Nitrogen makes up 78% of Earth's atmosphere! It's essential for protein synthesis.",
-        shells: [40, 100], // K and L shells
+          "Nitrogen has maximum unpaired electrons in its 2p orbitals (↑ ↑ ↑), making it very stable and unreactive!",
+        shells: [K_SHELL, L_SHELL], // K and L shells
         orbitals: [
-          // First shell (K - 1s²)
-          shell(40, 0, "blue", G6, 0.012),
-          shell(40, Math.PI, "blue", G6, 0.012),
-          // Second shell (L - 2s² 2p³) - distributed around the shell
-          shell(100, 0, "orange", G4, 0.018),
-          shell(100, Math.PI, "orange", G4, 0.018),
-          shell(100, Math.PI / 2, "orange", G5, 0.02),
-          shell(100, (3 * Math.PI) / 2, "orange", G5, 0.02),
-          shell(100, Math.PI / 4, "orange", G5, 0.022),
+          shell(K_SHELL, 0, "blue", G4, 0.022), // 1s¹ (spin-down)
+          shell(K_SHELL, Math.PI, "orange", G4, 0.022), // 1s² (spin-up)
+          shell(L_SHELL, 0, "blue", Gsharp4, 0.022), // 2s¹ (spin-down)
+          shell(L_SHELL, Math.PI, "orange", Gsharp4, 0.022), // 2s² (spin-up)
+          shell(L_SHELL, Math.PI / 2, "orange", A4, 0.022), // 2p¹ (spin-up)
+          shell(L_SHELL, (3 * Math.PI) / 2, "orange", A4, 0.022), // 2p² (spin-up)
+          shell(L_SHELL, Math.PI / 4, "orange", A4, 0.022), // 2p³ (spin-up)
         ],
       },
     ];
@@ -140,6 +146,7 @@ class OrbitalSystem {
       shakeOffsetY: 0,
     }));
     this.time = 0;
+    this.timeWarningPlayed = false; // Reset time warning for new level
   }
 
   checkCompletion() {
@@ -209,6 +216,11 @@ class OrbitalSystem {
   stunOrbital(orbital) {
     orbital.stunned = true;
     orbital.stunnedTime = 3; // 3 seconds stun duration
+
+    // Play stun sound
+    if (this.audio) {
+      this.audio.playOrbitalStun();
+    }
   }
 
   // Handle hits on occupied orbitals
@@ -494,6 +506,17 @@ class OrbitalSystem {
     ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
     ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 95);
 
+    // Play time warning sound when 10 seconds left (only once per level)
+    if (
+      timeLeft <= 10 &&
+      timeLeft > 0 &&
+      !this.timeWarningPlayed &&
+      this.audio
+    ) {
+      this.audio.playTimeWarning();
+      this.timeWarningPlayed = true;
+    }
+
     if (this.checkCompletion()) {
       ctx.save();
 
@@ -565,7 +588,7 @@ class OrbitalSystem {
       // Congratulations header
       ctx.fillStyle = "rgb(255, 255, 100)";
       ctx.font = "24px 'Courier New', monospace";
-      ctx.fillText("🎉 ELEMENT BUILT! 🎉", this.canvas.width / 2, boxY + 40);
+      ctx.fillText("ELEMENT BUILT!", this.canvas.width / 2, boxY + 40);
 
       // Element details
       ctx.fillStyle = "rgb(100, 200, 255)";

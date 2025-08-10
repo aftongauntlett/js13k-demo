@@ -1,6 +1,6 @@
 // Simple electron with polarity-based physics
 class Electron {
-  constructor(x, y, type) {
+  constructor(x, y, type, audioSystem = null) {
     this.x = x;
     this.y = y;
     this.vx = (Math.random() - 0.5) * 2;
@@ -13,6 +13,7 @@ class Electron {
     this.inactive = false; // True when electron becomes grey/inactive
     this.inactiveTime = 0; // Time remaining inactive
     this.TAU = Math.PI * 2; // 2π constant for efficiency
+    this.audio = audioSystem; // Reference to audio system
   }
 
   // Handle boundary collisions for all scenarios
@@ -102,6 +103,13 @@ class Electron {
     this.x += this.vx;
     this.y += this.vy;
 
+    // Play subtle gliding sound based on velocity (only when moving fast enough)
+    let velocity = M.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (velocity > 2 && this.audio && M.random() < 0.03) {
+      // 3% chance per frame when moving fast
+      this.audio.playOrbitalGlide(velocity / 10); // Normalize velocity for sound intensity
+    }
+
     // Get canvas bounds from orbital system
     let canvasWidth = orbitalSystem.canvas.width;
     let canvasHeight = orbitalSystem.canvas.height;
@@ -121,12 +129,18 @@ class Electron {
           let electronKnockedOut = orbitalSystem.hitOccupiedOrbital(orbital);
 
           if (electronKnockedOut) {
+            // Play knock out sound
+            if (this.audio) {
+              this.audio.playElectronKnockedOut();
+            }
+
             // Create a new electron to replace the knocked-out one
             // Spawn it near the orbital but with some random velocity
             let newElectron = new Electron(
               orbital.x + (M.random() - 0.5) * 100,
               orbital.y + (M.random() - 0.5) * 100,
-              orbital.type
+              orbital.type,
+              this.audio
             );
             // Add some initial velocity to the new electron
             newElectron.vx = (M.random() - 0.5) * 4;
@@ -137,6 +151,11 @@ class Electron {
             // For now, we'll store it in a way the game can pick it up
             if (window.game) {
               window.game.electrons.push(newElectron);
+            }
+          } else {
+            // Just a collision, not a knockout
+            if (this.audio) {
+              this.audio.playOrbitalCollision();
             }
           }
 
@@ -160,6 +179,12 @@ class Electron {
               this.captured = true;
               this.x = orbital.x;
               this.y = orbital.y;
+
+              // Play capture sound
+              if (this.audio) {
+                this.audio.playElectronCapture();
+              }
+
               break;
             } else if (orbital.rotate) {
               // Rotating orbital but electron can't enter through gap - bounce
@@ -178,6 +203,11 @@ class Electron {
           this.mouseInfluenced = false;
           this.inactiveTime = 5; // Inactive for 5 seconds
           orbitalSystem.stunOrbital(orbital);
+
+          // Play wrong electron sound
+          if (this.audio) {
+            this.audio.playWrongElectron();
+          }
 
           // Bounce away from orbital
           let bounceX = odx / odist,

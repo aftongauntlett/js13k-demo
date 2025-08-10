@@ -6,7 +6,9 @@ class Game {
 
     // Systems
     this.input = new InputSystem(this.canvas);
-    this.orbitals = new OrbitalSystem(this.canvas);
+    this.audio = new AudioSystem();
+    this.orbitals = new OrbitalSystem(this.canvas, this.audio);
+    this.tutorial = new Tutorial(this);
 
     // Electrons
     this.electrons = [];
@@ -17,18 +19,26 @@ class Game {
     this.spawnParticles();
 
     // Click handler for level progression/restart and tip closing
-    this.canvas.addEventListener("click", () => {
+    this.canvas.addEventListener("click", async () => {
+      // Initialize audio on first user interaction
+      if (!this.audio.isInitialized) {
+        await this.audio.init();
+      }
+
       // Check if educational tip is showing
       if (this.orbitals.showingTip) {
         this.orbitals.closeTip();
+        this.audio.playUIHover();
         return;
       }
 
       let timeLeft = Math.max(0, this.orbitals.levelTime - this.orbitals.time);
       if (this.orbitals.checkCompletion()) {
+        this.audio.playLevelComplete();
         this.orbitals.nextLevel();
         this.spawnElectrons();
       } else if (timeLeft <= 0) {
+        this.audio.playGameOver();
         this.orbitals.resetLevel();
         this.spawnElectrons();
       }
@@ -36,12 +46,36 @@ class Game {
 
     // Keyboard handler for closing tips with Escape
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.orbitals.showingTip) {
-        this.orbitals.closeTip();
+      if (e.key === "Escape") {
+        if (this.orbitals.showingTip) {
+          this.orbitals.closeTip();
+        } else {
+          // Show tutorial when Escape is pressed and no tip is showing
+          this.tutorial.show();
+        }
+      } else if (e.key === "m" || e.key === "M") {
+        // Toggle mute with 'M' key
+        const isMuted = this.audio.toggleMute();
+        console.log(isMuted ? "Audio muted" : "Audio unmuted");
+      } else if (e.key === "r" || e.key === "R") {
+        // Restart from level 1 with 'R' key
+        this.orbitals.currentLevel = 0;
+        this.orbitals.score = 0;
+        this.orbitals.resetLevel();
+        this.spawnElectrons();
+        this.audio.playUIHover();
+        console.log("Restarted from level 1");
       }
     });
 
     this.gameLoop();
+
+    // Show tutorial on first visit
+    setTimeout(() => {
+      if (this.tutorial.shouldShow()) {
+        this.tutorial.show();
+      }
+    }, 1000); // Small delay to let the game load
   }
 
   spawnElectrons() {
@@ -55,7 +89,8 @@ class Game {
           new Electron(
             Math.random() * (this.canvas.width - 100) + 50,
             Math.random() * (this.canvas.height - 100) + 50,
-            type
+            type,
+            this.audio
           )
         );
       }
@@ -143,7 +178,7 @@ class Game {
     this.ctx.fillStyle = "rgba(255,255,255,0.7)";
     this.ctx.font = "12px Arial";
     this.ctx.fillText(
-      "Orange repel, blue attract | Guide electrons through rotating gaps with mouse",
+      "Spin-up (↑) repel, spin-down (↓) attract | M: Mute | R: Restart | Esc: Help",
       20,
       this.canvas.height - 20
     );
@@ -153,5 +188,11 @@ class Game {
     this.update();
     this.draw();
     requestAnimationFrame(() => this.gameLoop());
+  }
+
+  // Method called by tutorial when ready to start
+  start() {
+    // Game is already running, this is just for tutorial integration
+    console.log("Game started from tutorial");
   }
 }
