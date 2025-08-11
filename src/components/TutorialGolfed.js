@@ -35,6 +35,7 @@ class T {
   }
 
   show() {
+    console.log("Tutorial show called, current step:", this.s);
     this.v = 1;
     this.s = 0;
     this.c();
@@ -52,6 +53,10 @@ class T {
   }
 
   c() {
+    if (this.o) {
+      this.o.remove();
+      this.o = null;
+    }
     this.o = document.createElement("div");
     // Minimal inline styling
     this.o.style.cssText =
@@ -59,18 +64,25 @@ class T {
 
     this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:500px;max-height:80vh;overflow:auto">
       <div style="display:flex;justify-content:space-between;padding:15px;border-bottom:1px solid #69f;background:#222">
-        <span>${this.s + 1}/4</span>
-        <button onclick="tutorial.hide()" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
+        <span class="step-counter">${this.s + 1}/4</span>
+        <button class="close-btn" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
       </div>
       <div style="padding:20px">
         <h2 style="color:#ff6;margin:0 0 15px;font-size:18px" class="title"></h2>
         <div class="content" style="line-height:1.5"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;padding:15px;border-top:1px solid #69f;background:#222">
-        <button onclick="tutorial.prev()" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none" class="prev">Previous</button>
-        <button onclick="tutorial.next()" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px" class="next">Next</button>
+        <button class="prev" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none">Previous</button>
+        <button class="next" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px">Next</button>
       </div>
     </div>`;
+
+    // Bind event handlers directly instead of using onclick attributes
+    this.o
+      .querySelector(".close-btn")
+      .addEventListener("click", () => this.hide());
+    this.o.querySelector(".prev").addEventListener("click", () => this.prev());
+    this.o.querySelector(".next").addEventListener("click", () => this.next());
 
     document.body.appendChild(this.o);
   }
@@ -78,6 +90,8 @@ class T {
   u() {
     if (!this.o) return;
     let step = this.d[this.s];
+    // Update step counter
+    this.o.querySelector(".step-counter").textContent = `${this.s + 1}/4`;
     this.o.querySelector(".title").textContent = this.t[step[0]];
     let content = "";
     for (let i = 0; i < step[2]; i++) {
@@ -89,10 +103,13 @@ class T {
   }
 
   next() {
+    console.log("Tutorial next called, current step:", this.s);
     if (this.s < 3) {
       this.s++;
+      console.log("Moving to step:", this.s);
       this.u();
     } else {
+      console.log("Tutorial complete, hiding and starting game");
       this.hide();
       if (this.g && this.g.start) this.g.start();
     }
