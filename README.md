@@ -1,16 +1,16 @@
-# Atomic Puzzle Game - JS13K Ready! 🚀
+# Atomic Puzzle Game - JS13K Practice
 
-[![Build Status](https://img.shields.io/badge/build-ready-success?logo=github-actions)](https://github.com/aftongauntlett/js13k-demo/actions)
-[![Size Optimized](https://img.shields.io/badge/size-10.7KB%20zipped-success?logo=javascript)](https://github.com/aftongauntlett/js13k-demo)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/aftongauntlett/js13k-demo?logo=git)](https://github.com/aftongauntlett/js13k-demo/commits)
+[![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://js13k-demo.vercel.app)
 [![JS13K Ready](https://img.shields.io/badge/JS13K-2.3KB%20under%20budget-brightgreen?logo=webgl)](https://js13kgames.com/)
 
-> **SUCCESS!** Through massive optimization and "golfing" techniques, this game is now **JS13K compliant** at just **10.7KB zipped** (2.3KB under the 13KB limit). What started as a learning project became a fully optimized JS13K game demonstrating atomic physics education in minimal space.
+> **SUCCESS!** Through massive optimization and "golfing" techniques, this game is now **JS13K compliant** at just **11.5KB zipped** (1.5KB under the 13KB limit). What started as a learning project became a fully optimized JS13K game demonstrating atomic physics education in minimal space.
 
 A physics-based puzzle game demonstrating real atomic structures through interactive orbital mechanics. Build authentic elements from Hydrogen to Nitrogen by guiding electrons into their proper electron shells using electromagnetic fields. Now fully optimized for JS13K competition constraints!
 
 ## JS13K Optimization Achievements ⚡
 
-**From 72KB → 10.7KB (85% size reduction!)**
+**From 72KB → 11.5KB (84% size reduction!)**
 
 - **Ultra-Golfed Classes**: `AudioSystem` → `A`, `OrbitalSystem` → `O`, `Electron` → `E`
 - **Method Compression**: `playSound()` → `p()`, `init()` → `i()`, `mute()` → `t()`
@@ -79,13 +79,12 @@ npm run size   # Check current size (alias for build)
 ### Build Output
 
 ```
-Built file: 36,452 bytes (35.6 KB uncompressed)
-Compression: 70.7% reduction
-Estimated ZIP size: ~10.7 KB
-JS13K budget remaining: ~2.3 KB ✅
+Built file: 39222 bytes (38.3 KB)
+Compression: 0.6% reduction
+Estimated ZIP size: ~11.5 KB
+JS13K budget remaining: ~1.5 KB ✅
 ```
 
 ---
 
-**JS13K Optimization Success** 🏆 - From learning project to competition-ready in one epic refactor!  
-Built by [Afton Gauntlett](https://github.com/aftongauntlett) - Ready for JS13K 2025! ⚛️
+Built with ✨ by [Afton Gauntlett](https://github.com/aftongauntlett) • Senior Frontend Engineer
