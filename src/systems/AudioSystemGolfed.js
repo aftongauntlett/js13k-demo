@@ -64,6 +64,13 @@ class A {
   // Play SFX by index with optional echo
   p(i, v = 1, echo = false) {
     if (!this.c || this.muted) return;
+
+    // Rate limiting to prevent audio spam
+    const now = Date.now();
+    this.lastPlay = this.lastPlay || {};
+    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return; // 100ms cooldown per sound
+    this.lastPlay[i] = now;
+
     const s = this.c.createBufferSource();
     const g = this.c.createGain();
     s.buffer = this.s[i];

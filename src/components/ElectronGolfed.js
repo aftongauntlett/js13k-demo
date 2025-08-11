@@ -51,12 +51,12 @@ class E {
 
     // Orbital interactions
     for (let orb of orbitals) {
-      if (orb.occupied || orb.stunned > 0.1) continue;
-
       let dx = orb.x - this.x,
         dy = orb.y - this.y,
         dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 60) {
+
+      // Attraction/repulsion forces (applied to all orbitals within range)
+      if (!orb.stunned && dist < 60) {
         let force = (0.1 * (60 - dist)) / 60;
         let fx = (dx / dist) * force,
           fy = (dy / dist) * force;
@@ -72,23 +72,53 @@ class E {
         }
       }
 
-      // Capture check
-      if (orbitalSys.canEnter(orb, this.x, this.y)) {
-        if (this.type === orb.type) {
-          orb.occupied = 1;
-          this.captured = 1;
-          this.a?.p(1);
-          return;
-        } else {
-          orbitalSys.stun(orb);
-        }
-      }
+      // Collision detection for capture or hitting
+      if (dist < 25) {
+        if (!orb.occupied && !orb.stunned && this.type === orb.type) {
+          // Check if we can actually enter this orbital (important for orange orbitals)
+          if (orbitalSys.canEnter(orb, this.x, this.y)) {
+            // Capture - matching type in empty orbital
+            orb.occupied = 1;
+            this.captured = 1;
+            this.a?.p(1);
+            return;
+          }
+        } else if (!orb.occupied && this.type !== orb.type) {
+          // Wrong type hitting empty orbital - bounce off with strong force
+          let repelForce = 12; // Stronger force to ensure they get out
+          let repelX = ((this.x - orb.x) / dist) * repelForce;
+          let repelY = ((this.y - orb.y) / dist) * repelForce;
+          this.vx = repelX; // Set velocity instead of adding to ensure strong bounce
+          this.vy = repelY;
 
-      // Hit occupied orbital
-      if (orb.occupied && dist < 25) {
-        orbitalSys.hit(orb);
-        this.inactive = 3;
-        this.inactiveTime = 3;
+          // Push electron outside collision zone immediately
+          let pushOut = 30; // Push to safe distance
+          this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
+          this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
+
+          this.inactive = 0.3; // Brief inactive to prevent re-collision
+          this.inactiveTime = 0.3;
+          this.a?.p(3); // Wrong electron sound
+          orbitalSys.stun(orb, false);
+          return;
+        } else if (orb.occupied) {
+          // Hit occupied orbital - bounce off with strong force
+          let repelForce = 12; // Stronger force to ensure they get out
+          let repelX = ((this.x - orb.x) / dist) * repelForce;
+          let repelY = ((this.y - orb.y) / dist) * repelForce;
+          this.vx = repelX; // Set velocity instead of adding
+          this.vy = repelY;
+
+          // Push electron outside collision zone immediately
+          let pushOut = 30; // Push to safe distance
+          this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
+          this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
+
+          this.inactive = 0.3; // Brief inactive to prevent multiple hits
+          this.inactiveTime = 0.3;
+          orbitalSys.hit(orb);
+          return;
+        }
       }
     }
 

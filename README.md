@@ -23,16 +23,21 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 
 🎵 **Procedural Audio** - Musical chord progressions and sound effects from code alone  
 🧪 **Real Atomic Physics** - Accurate Bohr model with proper electron shell mechanics  
-🎮 **Smooth Gameplay** - Electromagnetic attraction/repulsion with capture assistance  
+🎮 **Smooth Gameplay** - Electromagnetic attraction/repulsion with advanced collision physics  
 ⚛️ **Educational Value** - Learn 1s, 2s, 2p orbitals through interactive gameplay  
-🎨 **Visual Polish** - Shell outlines, capture cones, particle effects under 11KB!
+🎨 **Visual Polish** - Shell outlines, orbital shake effects, particle systems under 11KB!
 
 ## How to Play 🎮
 
 - **Blue electrons** are attracted to your mouse (electromagnetic attraction)
-- **Orange electrons** are repelled by your mouse (electromagnetic repulsion)  
-- **Capture assistance** - Orange orbs slow down when mouse is nearby
-- Guide electrons through rotating orbital gaps to fill electron shells
+- **Orange electrons** are repelled by your mouse (electromagnetic repulsion)
+- **Orange orbital timing** - Orange orbitals require precise timing through rotating gaps
+- **Capture assistance** - Orange orbitals slow down when mouse is nearby for easier timing
+- Guide electrons into orbital rings to fill electron shells
+- Electrons automatically capture when they contact a matching orbital (blue: instant, orange: through gaps)
+- **Two-hit knockout system** - Hit an occupied orbital twice to knock out the electron
+  - First hit: Target shakes visually with sound feedback
+  - Second hit: Electron gets knocked out and respawns after delay
 - Complete atoms by filling all orbitals with proper electron configuration
 - Learn real atomic structure: H (1s¹), He (1s²), Li (1s² 2s¹), C (1s² 2s² 2p²), N (1s² 2s² 2p³)
 - **Press 'M' to toggle mute** - Experience procedural ambient music!
@@ -48,13 +53,15 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 ## Technical Architecture 🔧
 
 ### Golfed Classes (Source → Build)
+
 - `AudioSystemGolfed.js` → Class `A` (Procedural audio synthesis)
-- `OrbitalSystemGolfed.js` → Class `O` (Atomic physics simulation)  
+- `OrbitalSystemGolfed.js` → Class `O` (Atomic physics simulation)
 - `ElectronGolfed.js` → Class `E` (Particle physics)
 - `TutorialGolfed.js` → Class `T` (Educational overlay)
 - `GameGolfed.js` → Class `G` (Main game coordination)
 
 ### Size Optimization Techniques
+
 - **Variable golfing**: `frequency` → `f`, `amplitude` → `a`
 - **Method shortening**: `playSound(index)` → `p(i)`
 - **String tables**: Repeated text compressed into arrays
@@ -70,9 +77,10 @@ npm run size   # Check current size (alias for build)
 ```
 
 ### Build Output
+
 ```
 Built file: 36,452 bytes (35.6 KB uncompressed)
-Compression: 70.7% reduction  
+Compression: 70.7% reduction
 Estimated ZIP size: ~10.7 KB
 JS13K budget remaining: ~2.3 KB ✅
 ```

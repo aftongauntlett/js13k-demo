@@ -132,6 +132,7 @@ class O {
       orb.angle += orb.speed;
       if (orb.occupied) orb.eAngle += 0.05;
       if (orb.stunned > 0) orb.stunned -= 1 / 60;
+      if (orb.shake > 0) orb.shake -= 1 / 60; // Reduce shake over time
     }
     if (this.tip && this.t - this.ts > 4) this.tip = 0;
   }
@@ -165,9 +166,9 @@ class O {
     return diff < gapSize / 2;
   }
 
-  stun(orb) {
-    orb.stunned = 2;
-    this.a?.p(4);
+  stun(orb, playSound = true) {
+    orb.stunned = 0.5; // Shorter stun duration
+    if (playSound) this.a?.p(4);
   }
 
   hit(orb) {
@@ -175,9 +176,13 @@ class O {
     if (orb.hits >= 2) {
       orb.occupied = 0;
       orb.hits = 0;
-      this.k = { type: orb.type, time: this.t };
-      this.a?.p(2);
-    } else this.a?.p(3);
+      orb.shake = 0; // Reset any shake
+      this.k = { type: orb.type, time: this.t + 0.5 }; // Delay respawn slightly
+      this.a?.p(2); // Knockout sound
+    } else {
+      orb.shake = 0.3; // Add shake effect on first hit
+      this.a?.p(4); // Hit sound (different from wrong electron)
+    }
   }
 
   nextLevel() {
@@ -257,18 +262,28 @@ class O {
 
       // Orbital ring with enhanced capture zone for orange
       let ringOpacity = orb.type === 1 && orb.inCone > 0.1 ? 0.9 : 0.7;
+
+      // Add shake effect if orbital is being hit
+      let shakeX = 0,
+        shakeY = 0;
+      if (orb.shake > 0) {
+        let shakeIntensity = orb.shake * 6; // Make shake more visible
+        shakeX = (Math.random() - 0.5) * shakeIntensity;
+        shakeY = (Math.random() - 0.5) * shakeIntensity;
+      }
+
       ctx.strokeStyle = stunned
         ? "rgba(120,120,120,.6)"
         : c[0] + `${ringOpacity})`;
       ctx.lineWidth = orb.type === 1 && orb.inCone > 0.1 ? 3 : 2;
       ctx.beginPath();
-      ctx.arc(orb.x, orb.y, 20, 0, 6.28);
+      ctx.arc(orb.x + shakeX, orb.y + shakeY, 20, 0, 6.28);
       ctx.stroke();
 
       if (orb.occupied) {
-        // Electron orbiting
-        let ex = orb.x + Math.cos(orb.eAngle) * 18;
-        let ey = orb.y + Math.sin(orb.eAngle) * 18;
+        // Electron orbiting with shake effect
+        let ex = orb.x + shakeX + Math.cos(orb.eAngle) * 18;
+        let ey = orb.y + shakeY + Math.sin(orb.eAngle) * 18;
         let eGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, 8);
         eGrad.addColorStop(0, c[1]);
         eGrad.addColorStop(1, c[1].replace("rgb", "rgba").replace(")", ",0)"));

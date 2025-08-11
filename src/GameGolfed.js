@@ -137,8 +137,8 @@ class G {
   update() {
     this.orbitals.update();
 
-    // Check for knocked out electron respawn
-    if (this.orbitals.k) {
+    // Check for knocked out electron respawn (simple)
+    if (this.orbitals.k && this.orbitals.t >= this.orbitals.k.time) {
       this.respawn(this.orbitals.k.type);
       this.orbitals.k = null;
     }
