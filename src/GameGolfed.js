@@ -5,7 +5,6 @@ class G {
     this.easyMode = localStorage.getItem("easyMode") === "1";
     this.pausedAt = 0;
 
-    // Ensure timer is ON by default for new players
     if (localStorage.getItem("easyMode") === null) {
       localStorage.setItem("easyMode", "0");
       this.easyMode = false;
@@ -66,8 +65,6 @@ class G {
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
-      } else if (e.key === "g" || e.key === "G") {
-        this.glossary.toggle();
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
       } else if (e.key === "t" || e.key === "T") {
@@ -239,7 +236,7 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue=s Orange=p phases | G:Terms M:Mute T:Timer ESC:Tutorial",
+      "Blue=s Orange=p phases | M:Mute T:Timer ESC:Tutorial",
       20,
       580
     );

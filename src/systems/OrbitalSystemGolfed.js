@@ -133,7 +133,7 @@ class O {
       if (orb.occupied) orb.eAngle += 0.05;
       if (orb.stunned > 0) {
         orb.stunned -= 1 / 60;
-        if (orb.stunned < 0) orb.stunned = 0; // Prevent negative stunned values
+        if (orb.stunned < 0) orb.stunned = 0;
       }
       if (orb.shake > 0) orb.shake -= 1 / 60;
     }
@@ -214,11 +214,10 @@ class O {
   }
 
   stun(orb, playSound = true) {
-    // Progressive stun - gets longer with each violation
     orb.stunCount = (orb.stunCount || 0) + 1;
     let baseDuration = 3.0;
-    let progressiveDuration = baseDuration + (orb.stunCount - 1) * 1.5; // +1.5s per violation
-    let maxDuration = 8.0; // Cap at 8 seconds
+    let progressiveDuration = baseDuration + (orb.stunCount - 1) * 1.5;
+    let maxDuration = 8.0;
 
     orb.stunned = Math.min(progressiveDuration, maxDuration);
 
@@ -228,25 +227,21 @@ class O {
   hit(orb) {
     orb.hits = (orb.hits || 0) + 1;
     if (orb.hits >= 2) {
-      // Find and release the captured electron
       if (this.g && this.g.electrons) {
         let electronFound = false;
         for (let e of this.g.electrons) {
           if (e.captured && e.type === orb.type) {
             e.captured = 0;
 
-            // Release electron at safe distance from orbital
-            let angle = Math.random() * 6.28; // Random direction
-            let distance = 60 + Math.random() * 20; // 60-80 pixels away
+            let angle = Math.random() * 6.28;
+            let distance = 60 + Math.random() * 20;
             e.x = orb.x + Math.cos(angle) * distance;
             e.y = orb.y + Math.sin(angle) * distance;
 
-            // Give it velocity away from the orbital
-            let escapeSpeed = 3 + Math.random() * 2; // 3-5 speed
+            let escapeSpeed = 3 + Math.random() * 2;
             e.vx = Math.cos(angle) * escapeSpeed;
             e.vy = Math.sin(angle) * escapeSpeed;
 
-            // Make it inactive briefly to prevent immediate recapture
             e.inactive = 0.5;
             e.inactiveTime = 0.5;
 
@@ -255,7 +250,6 @@ class O {
           }
         }
         if (!electronFound) {
-          // No captured electron found - this shouldn't normally happen
         }
       }
 
@@ -263,8 +257,7 @@ class O {
       orb.hits = 0;
       orb.shake = 0;
 
-      // Add visual feedback - stun the orbital briefly after ejection
-      orb.stunned = 1.5; // Slightly shorter than regular stun (1.5s vs 3s)
+      orb.stunned = 1.5;
 
       this.a?.p(2, 0.5);
     } else {

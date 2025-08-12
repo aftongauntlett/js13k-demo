@@ -18,7 +18,7 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #020408; /* Very dark laboratory background */
+        background: #020408;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -27,7 +27,7 @@
       }
 
       canvas {
-        border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
+        border: 1px solid rgba(100, 150, 255, 0.2);
         cursor: none;
       }
 
@@ -35,7 +35,7 @@
         position: absolute;
         top: 10px;
         left: 10px;
-        color: #96c8ff; /* Scientific blue */
+        color: #96c8ff;
         font-size: 12px;
         opacity: 0.8;
         font-family: "Courier New", monospace;
@@ -437,6 +437,69 @@ class T {
 }
 
 
+class Glossary {
+  constructor() {
+    this.v = 0;
+    this.o = null;
+    this.t = [
+      ["s-orbital", "Spherical, lower energy", "Blue orbitals"],
+      ["p-orbital", "Dumbbell-shaped", "Orange orbitals"],
+      ["Wave phases", "Blue/orange = +/- regions", "Like real orbital math"],
+      ["Pauli", "Max 2 electrons/orbital", "Two electrons max per ring"],
+      ["Hund's Rule", "Fill singly first", "One per orbital first"],
+      ["Config", "1s² 2s² 2p⁶", "Real chemistry order"],
+      ["Aufbau", "Lowest energy first", "Blue before orange"],
+    ];
+  }
+
+  show() {
+    if (this.v) return;
+    this.v = 1;
+    this.c();
+  }
+
+  hide() {
+    this.v = 0;
+    if (this.o) this.o.remove(), (this.o = null);
+  }
+
+  c() {
+    if (this.o) this.o.remove();
+    this.o = document.createElement("div");
+    this.o.style.cssText =
+      "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
+
+    let h = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:400px;max-height:70vh;overflow:auto">
+      <div style="padding:15px;border-bottom:1px solid #69f;background:#222;display:flex;justify-content:space-between">
+        <span style="color:#ff6">📚 Terms</span>
+        <button class="x" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">✕</button>
+      </div><div style="padding:15px">`;
+
+    this.t.forEach(
+      (t) =>
+        (h += `<div style="margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px">
+      <b style="color:#ff6">${t[0]}</b><br>
+      <span style="color:#ccc">${t[1]}</span><br>
+      <span style="color:#69f">${t[2]}</span></div>`)
+    );
+
+    h += `</div></div>`;
+    this.o.innerHTML = h;
+    this.o.querySelector(".x").onclick = () => this.hide();
+    this.o.onclick = (e) => e.target === this.o && this.hide();
+    document.body.appendChild(this.o);
+  }
+
+  toggle() {
+    this.v ? this.hide() : this.show();
+  }
+
+  isVisible() {
+    return this.v;
+  }
+}
+
+
 class O {
   constructor(c, a, g) {
     this.c = c;
@@ -572,7 +635,7 @@ class O {
       if (orb.occupied) orb.eAngle += 0.05;
       if (orb.stunned > 0) {
         orb.stunned -= 1 / 60;
-        if (orb.stunned < 0) orb.stunned = 0; // Prevent negative stunned values
+        if (orb.stunned < 0) orb.stunned = 0;
       }
       if (orb.shake > 0) orb.shake -= 1 / 60;
     }
@@ -653,11 +716,10 @@ class O {
   }
 
   stun(orb, playSound = true) {
-    // Progressive stun - gets longer with each violation
     orb.stunCount = (orb.stunCount || 0) + 1;
     let baseDuration = 3.0;
-    let progressiveDuration = baseDuration + (orb.stunCount - 1) * 1.5; // +1.5s per violation
-    let maxDuration = 8.0; // Cap at 8 seconds
+    let progressiveDuration = baseDuration + (orb.stunCount - 1) * 1.5;
+    let maxDuration = 8.0;
 
     orb.stunned = Math.min(progressiveDuration, maxDuration);
 
@@ -667,25 +729,21 @@ class O {
   hit(orb) {
     orb.hits = (orb.hits || 0) + 1;
     if (orb.hits >= 2) {
-      // Find and release the captured electron
       if (this.g && this.g.electrons) {
         let electronFound = false;
         for (let e of this.g.electrons) {
           if (e.captured && e.type === orb.type) {
             e.captured = 0;
 
-            // Release electron at safe distance from orbital
-            let angle = Math.random() * 6.28; // Random direction
-            let distance = 60 + Math.random() * 20; // 60-80 pixels away
+            let angle = Math.random() * 6.28;
+            let distance = 60 + Math.random() * 20;
             e.x = orb.x + Math.cos(angle) * distance;
             e.y = orb.y + Math.sin(angle) * distance;
 
-            // Give it velocity away from the orbital
-            let escapeSpeed = 3 + Math.random() * 2; // 3-5 speed
+            let escapeSpeed = 3 + Math.random() * 2;
             e.vx = Math.cos(angle) * escapeSpeed;
             e.vy = Math.sin(angle) * escapeSpeed;
 
-            // Make it inactive briefly to prevent immediate recapture
             e.inactive = 0.5;
             e.inactiveTime = 0.5;
 
@@ -694,7 +752,6 @@ class O {
           }
         }
         if (!electronFound) {
-          // No captured electron found - this shouldn't normally happen
         }
       }
 
@@ -702,8 +759,7 @@ class O {
       orb.hits = 0;
       orb.shake = 0;
 
-      // Add visual feedback - stun the orbital briefly after ejection
-      orb.stunned = 1.5; // Slightly shorter than regular stun (1.5s vs 3s)
+      orb.stunned = 1.5;
 
       this.a?.p(2, 0.5);
     } else {
@@ -1221,16 +1277,14 @@ class A {
     }
   }
 
-  // Start ambient music - gentle musical progression
   m() {
     if (!this.c) return;
 
-    // Chord progression: Am - F - C - G (vi-IV-I-V in C major)
     const chords = [
-      [220, 264, 330], // Am (A-C-E)
-      [175, 220, 262], // F (F-A-C)
-      [196, 247, 294], // C (C-E-G)
-      [196, 247, 294], // G (G-B-D) - simplified to fit
+      [220, 264, 330],
+      [175, 220, 262],
+      [196, 247, 294],
+      [196, 247, 294],
     ];
 
     const melodyNotes = [
@@ -1241,7 +1295,7 @@ class A {
       294,
       330,
       349,
-      392, // Gentle descending phrase
+      392,
       440,
       523,
       494,
@@ -1249,24 +1303,22 @@ class A {
       392,
       349,
       330,
-      294, // Rise and fall
+      294,
     ];
 
     let chordIndex = 0;
     let melodyIndex = 0;
 
-    // Bass foundation (subtle)
     const bass = this.c.createOscillator();
     const bassGain = this.c.createGain();
     bass.type = "sine";
-    bass.frequency.value = 110; // Low A
+    bass.frequency.value = 110;
     bassGain.gain.setValueAtTime(0, this.c.currentTime);
     bassGain.gain.linearRampToValueAtTime(0.006, this.c.currentTime + 4);
     bass.connect(bassGain);
     bassGain.connect(this.g);
     bass.start();
 
-    // Chord pad (3 voices)
     const chordOscs = [];
     for (let i = 0; i < 3; i++) {
       const osc = this.c.createOscillator();
@@ -1289,7 +1341,6 @@ class A {
       chordOscs.push({ osc, gain });
     }
 
-    // Melody voice
     const melody = this.c.createOscillator();
     const melodyGain = this.c.createGain();
     const melodyFilter = this.c.createBiquadFilter();
@@ -1305,20 +1356,17 @@ class A {
     if (this.delay) melodyGain.connect(this.delay);
     melody.start();
 
-    // Chord progression (every 8 seconds)
     const changeChord = () => {
       const currentChord = chords[chordIndex];
 
-      // Update bass note
       if (bass.frequency) {
-        const bassNote = currentChord[0] / 2; // Octave down
+        const bassNote = currentChord[0] / 2;
         bass.frequency.exponentialRampToValueAtTime(
           bassNote,
           this.c.currentTime + 1
         );
       }
 
-      // Update chord voices
       chordOscs.forEach((voice, i) => {
         if (voice.osc.frequency) {
           voice.osc.frequency.exponentialRampToValueAtTime(
@@ -1332,12 +1380,10 @@ class A {
       setTimeout(changeChord, 8000);
     };
 
-    // Melody notes (every 2-3 seconds)
     const playMelodyNote = () => {
       const note = melodyNotes[melodyIndex];
 
       if (melody.frequency) {
-        // Gentle note entry
         melodyGain.gain.cancelScheduledValues(this.c.currentTime);
         melodyGain.gain.setValueAtTime(0, this.c.currentTime);
         melodyGain.gain.linearRampToValueAtTime(
@@ -1356,12 +1402,10 @@ class A {
       setTimeout(playMelodyNote, 2500 + Math.random() * 1000);
     };
 
-    // Start sequences
-    setTimeout(changeChord, 4000); // First chord change after 4s
-    setTimeout(playMelodyNote, 6000); // First melody note after 6s
+    setTimeout(changeChord, 4000);
+    setTimeout(playMelodyNote, 6000);
   }
 
-  // Mute toggle
   t() {
     this.muted = !this.muted;
     this.g.gain.value = this.muted ? 0 : 0.3;
@@ -1377,7 +1421,6 @@ class G {
     this.easyMode = localStorage.getItem("easyMode") === "1";
     this.pausedAt = 0;
 
-    // Ensure timer is ON by default for new players
     if (localStorage.getItem("easyMode") === null) {
       localStorage.setItem("easyMode", "0");
       this.easyMode = false;
@@ -1438,8 +1481,6 @@ class G {
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
-      } else if (e.key === "g" || e.key === "G") {
-        this.glossary.toggle();
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
       } else if (e.key === "t" || e.key === "T") {
@@ -1611,7 +1652,7 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue=s Orange=p phases | G:Terms M:Mute T:Timer ESC:Tutorial",
+      "Blue=s Orange=p phases | M:Mute T:Timer ESC:Tutorial",
       20,
       580
     );

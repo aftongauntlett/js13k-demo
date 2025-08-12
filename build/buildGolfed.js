@@ -16,6 +16,10 @@ const tutorialJs = fs.readFileSync(
   path.join(__dirname, "../src/components/TutorialGolfed.js"),
   "utf8"
 );
+const glossaryJs = fs.readFileSync(
+  path.join(__dirname, "../src/components/GlossaryGolfed.js"),
+  "utf8"
+);
 const orbitalSystemJs = fs.readFileSync(
   path.join(__dirname, "../src/systems/OrbitalSystemGolfed.js"),
   "utf8"
@@ -34,6 +38,8 @@ const allJs = `
 ${electronJs}
 
 ${tutorialJs}
+
+${glossaryJs}
 
 ${orbitalSystemJs}
 

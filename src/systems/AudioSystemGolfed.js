@@ -78,52 +78,34 @@ class A {
     }
   }
 
-  // Start ambient music - gentle musical progression
   m() {
     if (!this.c) return;
 
-    // Chord progression: Am - F - C - G (vi-IV-I-V in C major)
     const chords = [
-      [220, 264, 330], // Am (A-C-E)
-      [175, 220, 262], // F (F-A-C)
-      [196, 247, 294], // C (C-E-G)
-      [196, 247, 294], // G (G-B-D) - simplified to fit
+      [220, 264, 330],
+      [175, 220, 262],
+      [196, 247, 294],
+      [196, 247, 294],
     ];
 
     const melodyNotes = [
-      440,
-      392,
-      349,
-      330,
+      440, 392, 349, 330, 294, 330, 349, 392, 440, 523, 494, 440, 392, 349, 330,
       294,
-      330,
-      349,
-      392, // Gentle descending phrase
-      440,
-      523,
-      494,
-      440,
-      392,
-      349,
-      330,
-      294, // Rise and fall
     ];
 
     let chordIndex = 0;
     let melodyIndex = 0;
 
-    // Bass foundation (subtle)
     const bass = this.c.createOscillator();
     const bassGain = this.c.createGain();
     bass.type = "sine";
-    bass.frequency.value = 110; // Low A
+    bass.frequency.value = 110;
     bassGain.gain.setValueAtTime(0, this.c.currentTime);
     bassGain.gain.linearRampToValueAtTime(0.006, this.c.currentTime + 4);
     bass.connect(bassGain);
     bassGain.connect(this.g);
     bass.start();
 
-    // Chord pad (3 voices)
     const chordOscs = [];
     for (let i = 0; i < 3; i++) {
       const osc = this.c.createOscillator();
@@ -146,7 +128,6 @@ class A {
       chordOscs.push({ osc, gain });
     }
 
-    // Melody voice
     const melody = this.c.createOscillator();
     const melodyGain = this.c.createGain();
     const melodyFilter = this.c.createBiquadFilter();
@@ -162,20 +143,17 @@ class A {
     if (this.delay) melodyGain.connect(this.delay);
     melody.start();
 
-    // Chord progression (every 8 seconds)
     const changeChord = () => {
       const currentChord = chords[chordIndex];
 
-      // Update bass note
       if (bass.frequency) {
-        const bassNote = currentChord[0] / 2; // Octave down
+        const bassNote = currentChord[0] / 2;
         bass.frequency.exponentialRampToValueAtTime(
           bassNote,
           this.c.currentTime + 1
         );
       }
 
-      // Update chord voices
       chordOscs.forEach((voice, i) => {
         if (voice.osc.frequency) {
           voice.osc.frequency.exponentialRampToValueAtTime(
@@ -189,12 +167,10 @@ class A {
       setTimeout(changeChord, 8000);
     };
 
-    // Melody notes (every 2-3 seconds)
     const playMelodyNote = () => {
       const note = melodyNotes[melodyIndex];
 
       if (melody.frequency) {
-        // Gentle note entry
         melodyGain.gain.cancelScheduledValues(this.c.currentTime);
         melodyGain.gain.setValueAtTime(0, this.c.currentTime);
         melodyGain.gain.linearRampToValueAtTime(
@@ -213,12 +189,10 @@ class A {
       setTimeout(playMelodyNote, 2500 + Math.random() * 1000);
     };
 
-    // Start sequences
-    setTimeout(changeChord, 4000); // First chord change after 4s
-    setTimeout(playMelodyNote, 6000); // First melody note after 6s
+    setTimeout(changeChord, 4000);
+    setTimeout(playMelodyNote, 6000);
   }
 
-  // Mute toggle
   t() {
     this.muted = !this.muted;
     this.g.gain.value = this.muted ? 0 : 0.3;
