@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lan      canvas {
+        border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
+        cursor: none;
+      }>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,14 +23,12 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
-        font-family: "Courier New", monospace; /* Scientific/technical font */
+        font-family: "Courier New", monospace;
       }
 
       canvas {
         border: 1px solid rgba(100, 150, 255, 0.2); /* Subtle blue glow */
-        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="rgba(100,150,255,0.8)" stroke-width="2"/><circle cx="16" cy="16" r="6" fill="none" stroke="rgba(100,150,255,0.6)" stroke-width="1"/><circle cx="16" cy="16" r="2" fill="rgba(100,150,255,0.9)"/><line x1="4" y1="16" x2="12" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="20" y1="16" x2="28" y2="16" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="4" x2="16" y2="12" stroke="rgba(100,150,255,0.7)" stroke-width="1"/><line x1="16" y1="20" x2="16" y2="28" stroke="rgba(100,150,255,0.7)" stroke-width="1"/></svg>')
-            16 16,
-          crosshair;
+        cursor: none;
       }
 
       #info {
@@ -50,7 +51,6 @@
     <!-- All Combined & Golfed JavaScript -->
   <script>
 
-// Ultra-golfed electron for JS13K
 class E {
   constructor(x, y, type, a) {
     this.x = x;
@@ -67,8 +67,9 @@ class E {
     this.mouseInfluenced = 0;
   }
 
-  update(mx, my, orbitals, orbitalSys) {
+  u(mouse, orbitals, game) {
     if (this.captured) return;
+    if (!orbitals || !Array.isArray(orbitals)) return;
 
     if (this.inactive > 0) {
       this.inactive -= 1 / 60;
@@ -80,9 +81,8 @@ class E {
       return;
     }
 
-    // Mouse interaction
-    let dx = mx - this.x,
-      dy = my - this.y,
+    let dx = mouse.x - this.x,
+      dy = mouse.y - this.y,
       dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 120) {
       this.mouseInfluenced = 1;
@@ -91,84 +91,91 @@ class E {
         fy = (dy / dist) * force;
 
       if (this.type === 0) {
-        // blue - attract to mouse
         this.vx += fx * 0.5;
         this.vy += fy * 0.5;
       } else {
-        // orange - repel from mouse
         this.vx -= fx * 0.5;
         this.vy -= fy * 0.5;
       }
     } else this.mouseInfluenced = 0;
 
-    // Orbital interactions
     for (let orb of orbitals) {
       let dx = orb.x - this.x,
         dy = orb.y - this.y,
         dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Attraction/repulsion forces (applied to all orbitals within range)
-      if (!orb.stunned && dist < 60) {
+      if (orb.stunned <= 0.1 && dist < 60) {
         let force = (0.1 * (60 - dist)) / 60;
         let fx = (dx / dist) * force,
           fy = (dy / dist) * force;
 
         if (this.type === orb.type) {
-          // attract to matching orbital
           this.vx += fx;
           this.vy += fy;
         } else {
-          // repel from wrong orbital
           this.vx -= fx * 0.5;
           this.vy -= fy * 0.5;
         }
       }
 
-      // Collision detection for capture or hitting
       if (dist < 25) {
-        if (!orb.occupied && !orb.stunned && this.type === orb.type) {
-          // Check if we can actually enter this orbital (important for orange orbitals)
-          if (orbitalSys.canEnter(orb, this.x, this.y)) {
-            // Capture - matching type in empty orbital
+        if (!orb.occupied && orb.stunned <= 0.1 && this.type === orb.type) {
+          if (game.canEnter(orb, this.x, this.y)) {
             orb.occupied = 1;
             this.captured = 1;
-            this.a?.p(1);
+
+            // Reset stun counter on successful capture
+            orb.stunCount = 0;
+
+            this.a?.p(1, 0.5);
+            return;
+          } else {
+            let repelForce = 8;
+            let repelX = ((this.x - orb.x) / dist) * repelForce;
+            let repelY = ((this.y - orb.y) / dist) * repelForce;
+            this.vx = repelX;
+            this.vy = repelY;
+
+            let pushOut = 30;
+            this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
+            this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
+
+            this.inactive = 0.3;
+            this.inactiveTime = 0.3;
+            this.a?.p(3, 0.3);
+            game.stun(orb, false);
             return;
           }
         } else if (!orb.occupied && this.type !== orb.type) {
-          // Wrong type hitting empty orbital - bounce off with strong force
-          let repelForce = 12; // Stronger force to ensure they get out
+          let repelForce = 12;
           let repelX = ((this.x - orb.x) / dist) * repelForce;
           let repelY = ((this.y - orb.y) / dist) * repelForce;
-          this.vx = repelX; // Set velocity instead of adding to ensure strong bounce
+          this.vx = repelX;
           this.vy = repelY;
 
-          // Push electron outside collision zone immediately
-          let pushOut = 30; // Push to safe distance
+          let pushOut = 30;
           this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
           this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
 
-          this.inactive = 0.3; // Brief inactive to prevent re-collision
+          this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          this.a?.p(3); // Wrong electron sound
-          orbitalSys.stun(orb, false);
+          this.a?.p(3, 0.3);
+          game.stun(orb, false);
           return;
         } else if (orb.occupied) {
-          // Hit occupied orbital - bounce off with strong force
-          let repelForce = 12; // Stronger force to ensure they get out
+          let repelForce = 12;
           let repelX = ((this.x - orb.x) / dist) * repelForce;
           let repelY = ((this.y - orb.y) / dist) * repelForce;
-          this.vx = repelX; // Set velocity instead of adding
+          this.vx = repelX;
           this.vy = repelY;
 
-          // Push electron outside collision zone immediately
-          let pushOut = 30; // Push to safe distance
+          let pushOut = 30;
           this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
           this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
 
-          this.inactive = 0.3; // Brief inactive to prevent multiple hits
+          this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          orbitalSys.hit(orb);
+          game.hit(orb);
           return;
         }
       }
@@ -184,28 +191,30 @@ class E {
     let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     let now = Date.now();
 
-    if (this.x < this.r) {
-      this.x = this.r;
+    // Canvas edges
+    let r = this.r;
+    if (this.x < r) {
+      this.x = r;
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
-    if (this.x > 800 - this.r) {
-      this.x = 800 - this.r;
+    if (this.x > 800 - r) {
+      this.x = 800 - r;
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
-    if (this.y < this.r) {
-      this.y = this.r;
+    if (this.y < r) {
+      this.y = r;
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
-    if (this.y > 600 - this.r) {
-      this.y = 600 - this.r;
+    if (this.y > 600 - r) {
+      this.y = 600 - r;
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
 
-    // UI boundaries
+    // UI areas
     if (this.x < 220 && this.y < 120) {
       if (this.y > 110) {
         this.y = 120;
@@ -220,6 +229,16 @@ class E {
       this.y = 550;
       this.vy = -Math.abs(this.vy);
     }
+    if (this.x > 580 && this.y < 100) {
+      if (this.y > 90) {
+        this.y = 100;
+        this.vy = Math.abs(this.vy);
+      }
+      if (this.x < 590) {
+        this.x = 580;
+        this.vx = -Math.abs(this.vx);
+      }
+    }
   }
 
   sound(speed, now) {
@@ -229,7 +248,7 @@ class E {
     }
   }
 
-  draw(ctx) {
+  d(ctx) {
     if (this.captured) return;
 
     ctx.save();
@@ -273,12 +292,12 @@ class E {
     ctx.arc(this.x, this.y, this.r, 0, 6.28);
     ctx.fill();
 
-    // Spin indicator
+    // Orbital type indicator
     if (!this.inactive) {
       ctx.fillStyle = c[1];
       ctx.font = "10px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(this.type ? "↑" : "↓", this.x, this.y + 3);
+      ctx.fillText(this.type ? "p" : "s", this.x, this.y + 3);
     }
 
     ctx.restore();
@@ -286,7 +305,6 @@ class E {
 }
 
 
-// Ultra-golfed tutorial system for JS13K
 class T {
   constructor(g) {
     this.g = g;
@@ -294,35 +312,40 @@ class T {
     this.s = 0;
     this.o = null;
     this.h = localStorage.getItem("t") === "1";
-    // Compact text data - indexed strings
     this.t = [
-      "Welcome to Atomic Assembly!",
-      "Learn Real Atomic Physics!",
-      "Build atoms by placing electrons in correct orbitals",
-      "Understanding Electron Spins",
-      "Blue = Spin-Down, Orange = Spin-Up",
-      "Each orbital holds max 2 electrons with opposite spins",
+      "Atomic Assembly!",
+      "Learn Real Physics!",
+      "Place electrons in orbitals",
+      "Orbital Types",
+      "Blue=s, Orange=p phases",
+      "Colors show wave signs",
+      "Max 2 electrons per orbital",
       "How to Play",
-      "Mouse attracts/repels electrons - use physics!",
-      "Match electron colors to orbital colors",
-      "Time limit - complete before timeout",
+      "Mouse attracts/repels electrons",
+      "Match colors to orbitals",
+      "Complete before timeout",
       "Pro Tips",
-      "Pauli Exclusion: max 2 electrons per orbital",
-      "Hund's Rule: fill empty orbitals first",
-      "Listen for audio feedback",
+      "Pauli: max 2 per orbital",
+      "Hund's: fill singly first",
+      "Learn through trial",
+      "Advanced",
+      "Complete all for Infinite",
+      "Storms create interference",
+      "Navigate purple fields",
       "Continue",
       "Start Game",
     ];
-    // Step data: [title_idx, content_start_idx, content_count, button_idx]
     this.d = [
-      [0, 1, 2, 14],
-      [3, 4, 1, 14],
-      [6, 7, 2, 14],
-      [10, 11, 3, 15],
+      [0, 1, 2, 18], // Welcome - Continue
+      [3, 4, 2, 18], // Orbital Types - Continue
+      [6, 7, 3, 18], // How to Play - Continue
+      [10, 11, 3, 18], // Pro Tips - Continue
+      [14, 15, 3, 19], // Advanced - Start Game
     ];
   }
 
   show() {
+    if (this.v) return;
     this.v = 1;
     this.s = 0;
     this.c();
@@ -340,32 +363,44 @@ class T {
   }
 
   c() {
+    if (this.o) this.o.remove();
     this.o = document.createElement("div");
-    // Minimal inline styling
     this.o.style.cssText =
       "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
 
-    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:500px;max-height:80vh;overflow:auto">
+    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:500px">
       <div style="display:flex;justify-content:space-between;padding:15px;border-bottom:1px solid #69f;background:#222">
-        <span>${this.s + 1}/4</span>
-        <button onclick="tutorial.hide()" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
+        <span class="step-counter">${this.s + 1}/5</span>
+        <div style="display:flex;gap:10px">
+          <button class="glossary-btn" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">📚</button>
+          <button class="close-btn" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
+        </div>
       </div>
       <div style="padding:20px">
         <h2 style="color:#ff6;margin:0 0 15px;font-size:18px" class="title"></h2>
         <div class="content" style="line-height:1.5"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;padding:15px;border-top:1px solid #69f;background:#222">
-        <button onclick="tutorial.prev()" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none" class="prev">Previous</button>
-        <button onclick="tutorial.next()" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px" class="next">Next</button>
+        <button class="prev" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none">Previous</button>
+        <button class="next" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px">Next</button>
       </div>
     </div>`;
 
+    let c = this.o.querySelector(".close-btn"),
+      p = this.o.querySelector(".prev"),
+      n = this.o.querySelector(".next"),
+      g = this.o.querySelector(".glossary-btn");
+    c.onclick = () => this.hide();
+    p.onclick = () => this.prev();
+    n.onclick = () => this.next();
+    g.onclick = () => this.g?.glossary?.toggle?.();
     document.body.appendChild(this.o);
   }
 
   u() {
     if (!this.o) return;
     let step = this.d[this.s];
+    this.o.querySelector(".step-counter").textContent = `${this.s + 1}/5`;
     this.o.querySelector(".title").textContent = this.t[step[0]];
     let content = "";
     for (let i = 0; i < step[2]; i++) {
@@ -377,16 +412,17 @@ class T {
   }
 
   next() {
-    if (this.s < 3) {
+    if (!this.v || !this.o) return;
+    if (this.s < 4) {
       this.s++;
       this.u();
     } else {
       this.hide();
-      if (this.g && this.g.start) this.g.start();
+      setTimeout(() => this.g?.start?.(), 50);
     }
   }
-
   prev() {
+    if (!this.v || !this.o) return;
     if (this.s > 0) {
       this.s--;
       this.u();
@@ -394,195 +430,336 @@ class T {
   }
 
   shouldShow() {
-    return !this.h;
+    return !this.h && !this.v;
+  }
+
+  isVisible() {
+    return this.v;
   }
 }
 
 
-// Ultra-golfed orbital system for JS13K
 class O {
-  constructor(c, a) {
+  constructor(c, a, g) {
     this.c = c;
     this.l = 0;
     this.s = 0;
     this.t = 0;
     this.T = 45;
     this.a = a;
+    this.g = g;
     this.w = 0;
     this.k = null;
     this.tip = 0;
     this.ts = 0;
-
-    // Compact level data with proper shell positioning
-    // [name,atomicNum,shells,orbitalData] - orbitalData: [x,y,radius,type,gap,speed,shellRadius]
-    let CX = 400,
-      CY = 300; // Center coordinates
+    this.cycle = 0;
+    this.storms = [];
     this.L = [
-      ["Hydrogen", 1, [80], [[CX + 80, CY, 80, 0, 0.3, 0.02, 80]]],
+      ["Hydrogen", 1, 1.008, "H", [80], [[480, 300, 0, 80]]],
       [
         "Helium",
         2,
+        4.003,
+        "He",
         [80],
         [
-          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
+          [480, 300, 0, 80],
+          [320, 300, 0, 80],
         ],
       ],
       [
         "Lithium",
         3,
+        6.941,
+        "Li",
         [80, 140],
         [
-          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
+          [480, 300, 0, 80],
+          [320, 300, 0, 80],
+          [540, 300, 0, 140],
         ],
       ],
       [
         "Carbon",
         6,
+        12.011,
+        "C",
         [80, 140],
         [
-          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
-          [CX - 140, CY, 140, 0, 0.25, 0.022, 140],
-          [CX, CY + 140, 140, 1, 0.25, 0.022, 140],
-          [CX, CY - 140, 140, 1, 0.25, 0.022, 140],
+          [480, 300, 0, 80],
+          [320, 300, 0, 80],
+          [540, 300, 0, 140],
+          [260, 300, 0, 140],
+          [400, 440, 1, 140],
+          [400, 160, 1, 140],
         ],
       ],
       [
         "Nitrogen",
         7,
+        14.007,
+        "N",
         [80, 140],
         [
-          [CX + 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX - 80, CY, 80, 0, 0.3, 0.02, 80],
-          [CX + 140, CY, 140, 0, 0.25, 0.022, 140],
-          [CX - 140, CY, 140, 0, 0.25, 0.022, 140],
-          [CX, CY + 140, 140, 1, 0.25, 0.022, 140],
-          [CX, CY - 140, 140, 1, 0.25, 0.022, 140],
-          [CX + 99, CY + 99, 140, 1, 0.25, 0.022, 140],
+          [480, 300, 0, 80],
+          [320, 300, 0, 80],
+          [540, 300, 0, 140],
+          [260, 300, 0, 140],
+          [400, 440, 1, 140],
+          [400, 160, 1, 140],
+          [499, 399, 1, 140],
+        ],
+      ],
+      [
+        "Oxygen",
+        8,
+        15.999,
+        "O",
+        [80, 140],
+        [
+          [480, 300, 0, 80],
+          [320, 300, 0, 80],
+          [540, 300, 0, 140],
+          [260, 300, 0, 140],
+          [400, 440, 1, 140],
+          [400, 160, 1, 140],
+          [499, 399, 1, 140],
+          [301, 399, 1, 140],
         ],
       ],
     ];
 
-    // Facts compressed - with line breaks for better display
     this.F = [
-      "Simplest atom - just 1 proton\nand 1 electron",
-      "Noble gas - completely filled\nelectron shell",
-      "Alkali metal - very reactive\ndue to single outer electron",
-      "Forms 4 bonds - basis of\nall organic chemistry",
+      "Simplest atom - 1 proton\n1 electron",
+      "Noble gas - filled\nelectron shell",
+      "Alkali metal - reactive\nsingle outer electron",
+      "Forms 4 bonds - basis of\norganic chemistry",
       "Essential for proteins\nand DNA",
+      "Reactive gas - forms water\nsupports combustion",
     ];
 
     this.r();
   }
 
-  setMouse(x, y) {
-    this.m = { x, y };
-  }
-
   r() {
     let lvl = this.L[this.l];
     this.o = [];
-    for (let i = 0; i < lvl[3].length; i++) {
-      let d = lvl[3][i];
+    for (let i = 0; i < lvl[5].length; i++) {
+      let d = lvl[5][i];
       this.o.push({
         x: d[0],
         y: d[1],
-        r: d[2],
-        type: d[3],
-        gap: d[4],
-        speed: d[5],
-        shellR: d[6] || d[2], // Shell radius for drawing
-        angle: Math.random() * 6.28,
+        type: d[2],
+        shellR: d[3],
         occupied: 0,
         stunned: 0,
         eAngle: 0,
-        baseSpeed: d[5], // Store original speed for capture cone
-        inCone: 0, // For capture assistance
+        hits: 0,
+        shake: 0,
       });
     }
     this.t = 0;
     this.w = 0;
+
+    if (this.cycle === 0) {
+      this.storms = [];
+    }
   }
 
-  update() {
-    this.t += 1 / 60;
-    for (let orb of this.o) {
-      // Speed management for orange orbs
-      if (orb.type === 1 && !orb.occupied) {
-        // Impulse tap mechanic - slow down when mouse is near
-        let mouseX = this.m?.x || 0;
-        let mouseY = this.m?.y || 0;
-        let dx = mouseX - orb.x;
-        let dy = mouseY - orb.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 80) {
-          // Create capture cone effect
-          orb.inCone = Math.max(0.5, orb.inCone);
-          orb.speed = orb.baseSpeed * 0.3; // 70% slower
-        } else {
-          orb.inCone = Math.max(0, orb.inCone - 0.02);
-          orb.speed = orb.baseSpeed * (0.3 + 0.7 * (1 - orb.inCone));
-        }
-      }
-
-      orb.angle += orb.speed;
-      if (orb.occupied) orb.eAngle += 0.05;
-      if (orb.stunned > 0) orb.stunned -= 1 / 60;
-      if (orb.shake > 0) orb.shake -= 1 / 60; // Reduce shake over time
+  u() {
+    if (!(this.g && this.g.easyMode)) {
+      this.t += 1 / 60;
     }
+    for (let orb of this.o) {
+      if (orb.occupied) orb.eAngle += 0.05;
+      if (orb.stunned > 0) {
+        orb.stunned -= 1 / 60;
+        if (orb.stunned < 0) orb.stunned = 0; // Prevent negative stunned values
+      }
+      if (orb.shake > 0) orb.shake -= 1 / 60;
+    }
+
+    if (this.cycle > 0) {
+      this.uStorms();
+
+      if (Math.random() < 0.02 && this.storms.length < 3) {
+        this.createStorm();
+      }
+    }
+
     if (this.tip && this.t - this.ts > 4) this.tip = 0;
   }
 
   checkComplete() {
-    return this.o.filter((o) => o.occupied).length === this.o.length;
+    let timeLeft = Math.max(0, this.T - this.t);
+    return (
+      ((this.g && this.g.easyMode) || timeLeft > 0) &&
+      this.o.filter((o) => o.occupied).length === this.o.length
+    );
   }
 
   canEnter(orb, x, y) {
-    if (orb.occupied || orb.stunned > 0.1) return 0;
+    if (orb.occupied || orb.stunned > 0.1) {
+      return 0;
+    }
+
+    if (!this.followsElectronConfig(orb)) {
+      return 0;
+    }
+
     let dx = x - orb.x,
       dy = y - orb.y,
       dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Collision should be with the 20px orbital ring, not the shell
-    let orbitalRadius = 20;
-    let maxDist = orb.type === 1 ? 25 : 22; // Orange orbs get slightly larger zone
-    let minDist = orb.type === 1 ? 15 : 18;
+    return dist < 25;
+  }
 
-    if (dist > maxDist || dist < minDist) return 0;
+  followsElectronConfig(targetOrb) {
+    let s = {
+      s1: this.o.filter((o) => o.shellR === 80),
+      s2: this.o.filter((o) => o.shellR === 140 && o.type === 0),
+      p2: this.o.filter((o) => o.shellR === 140 && o.type === 1),
+    };
 
-    let angle = Math.atan2(dy, dx);
-    let diff = Math.abs(angle - orb.angle);
-    if (diff > Math.PI) diff = 6.28 - diff;
+    let filled = {
+      s1: s.s1.filter((o) => o.occupied).length,
+      s2: s.s2.filter((o) => o.occupied).length,
+      p2: s.p2.filter((o) => o.occupied).length,
+    };
 
-    // Wider gap for orange orbs and capture assistance
-    let gapSize = orb.gap;
-    if (orb.type === 1) gapSize *= 1.4; // 40% wider for orange
-    if (orb.inCone > 0) gapSize *= 1.2; // 20% wider when in capture cone
+    if (targetOrb.shellR === 80) {
+      return 1;
+    }
 
-    return diff < gapSize / 2;
+    if (targetOrb.shellR === 140) {
+      if (targetOrb.type === 0) {
+        let allowed = filled.s1 >= s.s1.length;
+        return allowed;
+      }
+
+      if (targetOrb.type === 1) {
+        if (filled.s1 < s.s1.length) {
+          return false;
+        }
+
+        if (targetOrb.occupied) {
+          let empty2p = s.p2.filter((o) => !o.occupied);
+          let allowed = empty2p.length === 0;
+          return allowed;
+        }
+        return true;
+      }
+    }
+
+    return true;
   }
 
   stun(orb, playSound = true) {
-    orb.stunned = 0.5; // Shorter stun duration
-    if (playSound) this.a?.p(4);
+    // Progressive stun - gets longer with each violation
+    orb.stunCount = (orb.stunCount || 0) + 1;
+    let baseDuration = 3.0;
+    let progressiveDuration = baseDuration + (orb.stunCount - 1) * 1.5; // +1.5s per violation
+    let maxDuration = 8.0; // Cap at 8 seconds
+
+    orb.stunned = Math.min(progressiveDuration, maxDuration);
+
+    if (playSound) this.a?.p(4, 0.4);
   }
 
   hit(orb) {
     orb.hits = (orb.hits || 0) + 1;
     if (orb.hits >= 2) {
+      // Find and release the captured electron
+      if (this.g && this.g.electrons) {
+        let electronFound = false;
+        for (let e of this.g.electrons) {
+          if (e.captured && e.type === orb.type) {
+            e.captured = 0;
+
+            // Release electron at safe distance from orbital
+            let angle = Math.random() * 6.28; // Random direction
+            let distance = 60 + Math.random() * 20; // 60-80 pixels away
+            e.x = orb.x + Math.cos(angle) * distance;
+            e.y = orb.y + Math.sin(angle) * distance;
+
+            // Give it velocity away from the orbital
+            let escapeSpeed = 3 + Math.random() * 2; // 3-5 speed
+            e.vx = Math.cos(angle) * escapeSpeed;
+            e.vy = Math.sin(angle) * escapeSpeed;
+
+            // Make it inactive briefly to prevent immediate recapture
+            e.inactive = 0.5;
+            e.inactiveTime = 0.5;
+
+            electronFound = true;
+            break;
+          }
+        }
+        if (!electronFound) {
+          // No captured electron found - this shouldn't normally happen
+        }
+      }
+
       orb.occupied = 0;
       orb.hits = 0;
-      orb.shake = 0; // Reset any shake
-      this.k = { type: orb.type, time: this.t + 0.5 }; // Delay respawn slightly
-      this.a?.p(2); // Knockout sound
+      orb.shake = 0;
+
+      // Add visual feedback - stun the orbital briefly after ejection
+      orb.stunned = 1.5; // Slightly shorter than regular stun (1.5s vs 3s)
+
+      this.a?.p(2, 0.5);
     } else {
-      orb.shake = 0.3; // Add shake effect on first hit
-      this.a?.p(4); // Hit sound (different from wrong electron)
+      orb.shake = 0.3;
+      this.a?.p(4, 0.4);
+    }
+  }
+
+  createStorm() {
+    this.storms.push({
+      x: 200 + Math.random() * 400,
+      y: 150 + Math.random() * 300,
+      r: 40,
+      maxR: 100 + Math.random() * 60,
+      life: 5 + Math.random() * 4,
+      maxLife: 5 + Math.random() * 4,
+      strength: 1.2 + Math.random() * 0.6,
+      pulse: Math.random() * 6.28,
+    });
+  }
+
+  uStorms() {
+    for (let i = this.storms.length - 1; i >= 0; i--) {
+      let storm = this.storms[i];
+      storm.life -= 1 / 60;
+      storm.pulse += 0.1;
+
+      let r = Math.max(0, Math.min(1, 1 - storm.life / storm.maxLife));
+      storm.r = Math.max(10, 30 + (storm.maxR - 30) * Math.sin(r * 3.14));
+
+      if (storm.life <= 0) {
+        this.storms.splice(i, 1);
+      }
+    }
+  }
+
+  applyStormForces(electron) {
+    if (!this.storms.length || electron.captured || electron.inactive > 0)
+      return;
+
+    for (let storm of this.storms) {
+      let dx = electron.x - storm.x;
+      let dy = electron.y - storm.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < storm.r && dist > 5) {
+        let pulse = 0.7 + 0.3 * Math.sin(storm.pulse);
+        let force = (storm.strength * pulse * (storm.r - dist)) / storm.r;
+        let fx = (dx / dist) * force * 0.8;
+        let fy = (dy / dist) * force * 0.8;
+
+        electron.vx += fx;
+        electron.vy += fy;
+      }
     }
   }
 
@@ -592,24 +769,28 @@ class O {
       this.tip = 1;
       this.ts = this.t;
       this.l++;
-      if (this.l >= this.L.length) this.l = 0;
+
+      if (this.l >= this.L.length) {
+        this.cycle++;
+        this.l = 0;
+        this.T = Math.max(15, 45 - this.cycle * 5);
+        this.storms = [];
+      }
+
       this.r();
       return 1;
     }
     return 0;
   }
 
-  draw(ctx) {
-    // Colors: [blue,orange]
+  d(ctx) {
     let colors = [
       ["rgba(100,150,255,", "rgb(100,150,255)"],
       ["rgba(255,150,100,", "rgb(255,150,100)"],
     ];
     let lvl = this.L[this.l];
-    let CX = this.c.width / 2,
-      CY = this.c.height / 2;
-
-    // Shell outlines
+    let f = this.o.filter((o) => o.occupied).length;
+    let total = this.o.length;
     let shells = new Set();
     for (let orb of this.o) {
       shells.add(orb.shellR);
@@ -618,71 +799,97 @@ class O {
     ctx.strokeStyle = "rgba(100,150,200,.3)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
-    for (let r of shells) {
+    [...shells].map((r) => {
       ctx.beginPath();
-      ctx.arc(CX, CY, r, 0, 6.28);
+      ctx.arc(400, 300, r, 0, 6.28);
       ctx.stroke();
-    }
+    });
     ctx.setLineDash([]);
     ctx.restore();
-
-    // Nucleus
     ctx.save();
-    ctx.shadowColor = "rgba(255,255,100,.8)";
-    ctx.shadowBlur = 15;
-    let grad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 15);
-    grad.addColorStop(0, "rgb(255,255,150)");
-    grad.addColorStop(1, "rgb(200,150,50)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(CX, CY, 12, 0, 6.28);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgb(50,50,50)";
-    ctx.font = "10px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(lvl[0].charAt(0), CX, CY + 3);
+
+    let fillRatio = total > 0 ? f / total : 0;
+
+    let p = lvl[1];
+    let n = Math.round(lvl[2] - lvl[1]);
+    let nucleons = p + n;
+
+    for (let s = 0; s < 8; s++) {
+      let sparkleAngle = (s / 8) * 6.28 + this.t * 0.3;
+      let sparkleR = 18 + Math.sin(this.t * 2 + s) * 6;
+      let sx = 400 + Math.cos(sparkleAngle) * sparkleR;
+      let sy = 300 + Math.sin(sparkleAngle) * sparkleR;
+      let sparkleAlpha = 0.1 + 0.15 * Math.sin(this.t * 3 + s * 1.5);
+
+      ctx.fillStyle = `rgba(255,255,200,${sparkleAlpha})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 0.8, 0, 6.28);
+      ctx.fill();
+    }
+
+    for (let i = 0; i < nucleons; i++) {
+      let angle = (i / nucleons) * 6.28 + this.t * 0.08;
+      let r = 2 + Math.sin(this.t * 0.4 + i) * 3;
+      let x = 400 + Math.cos(angle) * r;
+      let y = 300 + Math.sin(angle) * r;
+
+      let pulse = 1 + fillRatio * 0.08 * Math.sin(this.t * 1.5 + i);
+      let nucleonRadius = (3.5 + Math.sin(this.t * 1.2 + i) * 0.5) * pulse;
+
+      let flowAlpha = 0.4 + 0.3 * Math.sin(this.t * 0.8 + i * 2);
+
+      if (i < p) {
+        let intensity = 0.5 + fillRatio * 0.2;
+        ctx.fillStyle = `rgba(255,${60 * intensity},${
+          60 * intensity
+        },${flowAlpha})`;
+      } else {
+        let intensity = 0.5 + fillRatio * 0.2;
+        ctx.fillStyle = `rgba(${60 * intensity},${
+          100 * intensity
+        },255,${flowAlpha})`;
+      }
+
+      ctx.beginPath();
+      ctx.arc(x, y, nucleonRadius, 0, 6.28);
+      ctx.fill();
+    }
+
     ctx.restore();
 
-    // Orbitals
     for (let orb of this.o) {
       ctx.save();
       let c = colors[orb.type];
       let stunned = orb.stunned > 0.1;
 
-      // Capture cone for orange orbs
-      if (orb.type === 1 && orb.inCone > 0.1 && !orb.occupied) {
-        ctx.save();
-        ctx.strokeStyle = `rgba(255,150,100,${orb.inCone * 0.4})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, 80, 0, 6.28);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Orbital ring with enhanced capture zone for orange
-      let ringOpacity = orb.type === 1 && orb.inCone > 0.1 ? 0.9 : 0.7;
-
-      // Add shake effect if orbital is being hit
       let shakeX = 0,
         shakeY = 0;
       if (orb.shake > 0) {
-        let shakeIntensity = orb.shake * 6; // Make shake more visible
+        let shakeIntensity = orb.shake * 6;
         shakeX = (Math.random() - 0.5) * shakeIntensity;
         shakeY = (Math.random() - 0.5) * shakeIntensity;
       }
 
-      ctx.strokeStyle = stunned
-        ? "rgba(120,120,120,.6)"
-        : c[0] + `${ringOpacity})`;
-      ctx.lineWidth = orb.type === 1 && orb.inCone > 0.1 ? 3 : 2;
+      if (stunned) {
+        ctx.save();
+        let warningPulse = 0.3 + 0.4 * Math.sin(this.t * 6);
+        ctx.strokeStyle = `rgba(255,50,50,${warningPulse})`;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(orb.x + shakeX, orb.y + shakeY, 28, 0, 6.28);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      ctx.strokeStyle = stunned ? "rgba(80,80,80,.4)" : c[0] + "0.8)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(orb.x + shakeX, orb.y + shakeY, 20, 0, 6.28);
       ctx.stroke();
 
       if (orb.occupied) {
-        // Electron orbiting with shake effect
         let ex = orb.x + shakeX + Math.cos(orb.eAngle) * 18;
         let ey = orb.y + shakeY + Math.sin(orb.eAngle) * 18;
         let eGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, 8);
@@ -693,88 +900,152 @@ class O {
         ctx.arc(ex, ey, 8, 0, 6.28);
         ctx.fill();
       } else {
-        // Entry gap
-        ctx.translate(orb.x, orb.y);
-        ctx.rotate(orb.angle);
-        ctx.strokeStyle = stunned
-          ? "rgba(200,200,200,.8)"
-          : c[1].replace("rgb", "rgba").replace(")", ".9)");
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        let g = orb.gap / 2;
-        ctx.arc(0, 0, 20, g, 6.28 - g);
-        ctx.stroke();
-
-        // Gap indicators
-        ctx.strokeStyle = stunned
-          ? "rgba(160,160,160,.9)"
-          : c[1].replace("rgb", "rgba").replace(")", ".8)");
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(20 * Math.cos(g), 20 * Math.sin(g));
-        ctx.lineTo(14 * Math.cos(g), 14 * Math.sin(g));
-        ctx.moveTo(20 * Math.cos(-g), 20 * Math.sin(-g));
-        ctx.lineTo(14 * Math.cos(-g), 14 * Math.sin(-g));
-        ctx.stroke();
-
-        // Center dot
-        let pulse = 0.3 + 0.3 * Math.sin(this.t * 2.5);
-        ctx.fillStyle = stunned
-          ? `rgba(140,140,140,${pulse})`
-          : c[0] + `${pulse})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, 3, 0, 6.28);
-        ctx.fill();
+        if (stunned) {
+          let pulse = 0.2 + 0.3 * Math.sin(this.t * 4);
+          ctx.fillStyle = `rgba(100,40,40,${pulse})`;
+          ctx.beginPath();
+          ctx.arc(orb.x + shakeX, orb.y + shakeY, 6, 0, 6.28);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(255,80,80,${pulse})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(orb.x + shakeX - 4, orb.y + shakeY - 4);
+          ctx.lineTo(orb.x + shakeX + 4, orb.y + shakeY + 4);
+          ctx.moveTo(orb.x + shakeX + 4, orb.y + shakeY - 4);
+          ctx.lineTo(orb.x + shakeX - 4, orb.y + shakeY + 4);
+          ctx.stroke();
+        } else {
+          let pulse = 0.4 + 0.4 * Math.sin(this.t * 3);
+          ctx.fillStyle = c[0] + `${pulse})`;
+          ctx.beginPath();
+          ctx.arc(orb.x + shakeX, orb.y + shakeY, 4, 0, 6.28);
+          ctx.fill();
+        }
       }
       ctx.restore();
     }
 
-    // UI
-    ctx.fillStyle = "white";
-    ctx.font = "18px monospace";
-    ctx.fillText(lvl[0], 20, 30);
+    for (let orb of this.o) {
+      ctx.save();
+      ctx.font = "10px monospace";
+      ctx.fillStyle = "rgba(200,200,200,0.7)";
+      ctx.textAlign = "center";
 
-    // Atomic number box
-    ctx.fillStyle = "rgba(100,150,255,.2)";
-    ctx.fillRect(200, 10, 40, 30);
-    ctx.strokeStyle = "rgb(100,150,255)";
-    ctx.strokeRect(200, 10, 40, 30);
-    ctx.fillStyle = "rgb(0,255,255)";
-    ctx.font = "14px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(lvl[1], 220, 30);
+      if (orb.shellR === 80) {
+        ctx.fillText("1s", orb.x, orb.y - 35);
+      } else if (orb.shellR === 140) {
+        if (orb.type === 0) {
+          ctx.fillText("2s", orb.x, orb.y - 35);
+        } else {
+          ctx.fillText("2p", orb.x, orb.y - 35);
+        }
+      }
+      ctx.restore();
+    }
+
+    for (let storm of this.storms) {
+      ctx.save();
+      let lifeRatio = storm.life / storm.maxLife;
+      let alpha = Math.min(0.8, lifeRatio * 1.5);
+      let pulse = 0.6 + 0.4 * Math.sin(storm.pulse);
+      let radius = Math.max(5, storm.r);
+      ctx.strokeStyle = `rgba(255,100,255,${alpha * 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(storm.x, storm.y, radius, 0, 6.28);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,150,255,${alpha * pulse * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(storm.x, storm.y, Math.max(3, radius * 0.3 * pulse), 0, 6.28);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = "#EEEEEE";
+    ctx.font = "32px Arial";
+    ctx.textAlign = "right";
+    ctx.fillText(lvl[3], 790, 45);
+
+    ctx.font = "10px Arial";
+    ctx.fillText("Z = " + lvl[1], 790, 60);
+    ctx.fillText("A = " + lvl[2], 790, 73);
+    ctx.fillText("e⁻ = " + f + "/" + total, 790, 86);
+
+    // Element name with glow effect
+    ctx.fillStyle = "white";
+    ctx.font = "20px monospace";
     ctx.textAlign = "left";
+    ctx.shadowColor = "rgba(255,255,255,0.3)";
+    ctx.shadowBlur = 8;
+    ctx.fillText(lvl[0], 20, 30);
+    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = "white";
-    ctx.font = "18px monospace";
+    // Score
+    ctx.font = "16px monospace";
     ctx.fillText(`SCORE: ${this.s}`, 20, 55);
-    ctx.fillText(
-      `Electrons: ${this.o.filter((o) => o.occupied).length}/${this.o.length}`,
-      20,
-      75
-    );
+
+    if (this.cycle > 0) {
+      ctx.fillStyle = "rgb(255,150,100)";
+      ctx.font = "14px monospace";
+      ctx.fillText(`CYCLE: ${this.cycle}`, 20, 80);
+      ctx.fillStyle = "rgb(200,200,200)";
+      ctx.fillText(`Storms: ${this.storms.length}`, 20, 100);
+      ctx.fillStyle = "white";
+      ctx.fillText(
+        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
+          this.o.length
+        }`,
+        20,
+        120
+      );
+    } else {
+      ctx.fillStyle = "white";
+      ctx.font = "14px monospace";
+      ctx.fillText(
+        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
+          this.o.length
+        }`,
+        20,
+        80
+      );
+    }
 
     let timeLeft = Math.max(0, this.T - this.t);
-    ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-    ctx.fillText(`Time: ${timeLeft.toFixed(1)}s`, 20, 95);
+    if (this.g && this.g.easyMode) {
+      ctx.fillStyle = "rgb(100,255,100)";
+      ctx.font = "14px monospace";
+      ctx.fillText("Timer: OFF", 20, this.cycle > 0 ? 140 : 100);
+    } else {
+      ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
+      ctx.font = "14px monospace";
+      ctx.fillText(
+        `Timer: ${timeLeft.toFixed(1)}s`,
+        20,
+        this.cycle > 0 ? 140 : 100
+      );
+    }
 
-    if (timeLeft <= 10 && timeLeft > 0 && !this.w && this.a) {
-      this.a.p(6);
+    if (
+      timeLeft <= 10 &&
+      timeLeft > 0 &&
+      !this.w &&
+      this.a &&
+      !(this.g && this.g.easyMode)
+    ) {
+      this.a.p(6, 0.7);
       this.w = 1;
     }
 
-    // Completion check
     if (this.checkComplete()) {
       ctx.save();
-      // Modal background
       ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, this.c.width, this.c.height);
+      ctx.fillRect(0, 0, 800, 600);
 
-      // Modal box
       let boxW = 400,
         boxH = 120;
-      let boxX = (this.c.width - boxW) / 2,
-        boxY = (this.c.height - boxH) / 2;
+      let boxX = 200,
+        boxY = 240;
 
       ctx.fillStyle = "rgba(20,30,50,.95)";
       ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -782,31 +1053,33 @@ class O {
       ctx.lineWidth = 3;
       ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-      // Content
       ctx.textAlign = "center";
       ctx.font = "24px monospace";
       ctx.shadowColor = "rgb(255,255,0)";
       ctx.shadowBlur = 15;
       ctx.fillStyle = "rgb(255,255,100)";
-      ctx.fillText("LEVEL COMPLETE!", this.c.width / 2, boxY + 45);
+
+      if (this.l >= this.L.length - 1 && this.cycle === 0) {
+        ctx.fillText("INFINITE MODE UNLOCKED!", 400, boxY + 45);
+      } else {
+        ctx.fillText("LEVEL COMPLETE!", 400, boxY + 45);
+      }
 
       ctx.font = "16px monospace";
       ctx.shadowColor = "rgb(0,255,255)";
       ctx.shadowBlur = 8;
       ctx.fillStyle = "rgb(100,200,255)";
-      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", this.c.width / 2, boxY + 75);
+      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", 400, boxY + 75);
       ctx.restore();
-    } else if (timeLeft <= 0) {
+    } else if (timeLeft <= 0 && !(this.g && this.g.easyMode)) {
       ctx.save();
-      // Modal background
       ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, this.c.width, this.c.height);
+      ctx.fillRect(0, 0, 800, 600);
 
-      // Modal box
       let boxW = 400,
         boxH = 100;
-      let boxX = (this.c.width - boxW) / 2,
-        boxY = (this.c.height - boxH) / 2;
+      let boxX = 200,
+        boxY = 250;
 
       ctx.fillStyle = "rgba(50,20,20,.95)";
       ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -814,26 +1087,24 @@ class O {
       ctx.lineWidth = 3;
       ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-      // Content
       ctx.textAlign = "center";
       ctx.font = "20px monospace";
       ctx.shadowColor = "rgb(255,100,100)";
       ctx.shadowBlur = 15;
       ctx.fillStyle = "rgb(255,150,150)";
-      ctx.fillText("TIME'S UP! CLICK TO RETRY", this.c.width / 2, boxY + 60);
+      ctx.fillText("TIME'S UP! CLICK TO RETRY", 400, boxY + 60);
       ctx.restore();
     }
 
-    // Educational tip
     if (this.tip) {
       ctx.save();
       ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, this.c.width, this.c.height);
+      ctx.fillRect(0, 0, 800, 600);
 
       let boxW = 400,
-        boxH = 170; // Increased height for multi-line text
-      let boxX = (this.c.width - boxW) / 2,
-        boxY = (this.c.height - boxH) / 2;
+        boxH = 170;
+      let boxX = 200,
+        boxY = 215;
 
       ctx.fillStyle = "rgba(20,30,50,.95)";
       ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -844,26 +1115,25 @@ class O {
       ctx.textAlign = "center";
       ctx.fillStyle = "rgb(255,255,100)";
       ctx.font = "20px monospace";
-      ctx.fillText("ELEMENT BUILT!", this.c.width / 2, boxY + 35);
+      ctx.fillText("ELEMENT BUILT!", 400, boxY + 35);
 
       let prevIdx = this.l === 0 ? this.L.length - 1 : this.l - 1;
       ctx.fillStyle = "rgb(100,200,255)";
       ctx.font = "16px monospace";
-      ctx.fillText(this.L[prevIdx][0], this.c.width / 2, boxY + 60);
+      ctx.fillText(this.L[prevIdx][0], 400, boxY + 60);
 
-      // Handle multi-line text
       ctx.fillStyle = "rgb(255,200,100)";
       ctx.font = "14px monospace";
       const lines = this.F[prevIdx].split("\n");
       lines.forEach((line, i) => {
-        ctx.fillText(line, this.c.width / 2, boxY + 85 + i * 18);
+        ctx.fillText(line, 400, boxY + 85 + i * 18);
       });
 
       ctx.fillStyle = "rgba(150,150,150,.8)";
       ctx.font = "12px monospace";
       ctx.fillText(
         `(Auto-closes in ${Math.ceil(4 - (this.t - this.ts))}s)`,
-        this.c.width / 2,
+        400,
         boxY + 140
       );
 
@@ -873,7 +1143,6 @@ class O {
 }
 
 
-// Ultra-golfed audio system for JS13K
 class A {
   constructor() {
     this.c = null;
@@ -889,7 +1158,7 @@ class A {
     this.g.gain.value = 0.3;
     this.g.connect(this.c.destination);
 
-    // Create echo bus for spatial effect
+    // Echo bus
     this.delay = this.c.createDelay(0.5);
     this.delay.delayTime.value = 0.15;
     this.feedback = this.c.createGain();
@@ -898,21 +1167,19 @@ class A {
     this.feedback.connect(this.delay);
     this.delay.connect(this.g);
 
-    // Create all SFX buffers - fast attacks, bell-like releases
     this.s = [
-      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // 0: collision
-      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // 1: capture
-      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // 2: knocked out
-      this.b([3, 207, 0.3, 0.35, 0.002, 0.2]), // 3: wrong electron
-      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // 4: orbital stun
-      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // 5: UI hover
-      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // 6: time warning
-      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // 7: level complete
-      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // 8: twinkle for captures
+      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // collision
+      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // capture
+      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // knocked out
+      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]), // wrong electron
+      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // orbital stun
+      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // UI hover
+      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // time warning
+      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // level complete
+      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // twinkle
     ];
   }
 
-  // Create buffer from params [wave,freq,dur,vol,attack,release]
   b(p) {
     const l = this.c.sampleRate * p[2];
     const buf = this.c.createBuffer(1, l, this.c.sampleRate);
@@ -936,8 +1203,7 @@ class A {
     return buf;
   }
 
-  // Play SFX by index with optional echo
-  p(i, v = 1, echo = false) {
+  p(i, e, echo) {
     if (!this.c || this.muted) return;
 
     // Rate limiting to prevent audio spam
@@ -949,7 +1215,7 @@ class A {
     const s = this.c.createBufferSource();
     const g = this.c.createGain();
     s.buffer = this.s[i];
-    g.gain.value = v;
+    g.gain.value = isFinite(e) ? e : 0.5;
     s.connect(g);
     g.connect(this.g);
     if (echo && this.delay) g.connect(this.delay);
@@ -1109,36 +1375,28 @@ class A {
   }
 }
 
-// Usage shortcuts
-// a.p(0) - collision
-// a.p(1) - capture (with auto-twinkle)
-// a.p(2) - knocked out
-// a.p(3) - wrong electron
-// a.p(4) - orbital stun
-// a.p(5) - UI hover
-// a.p(6) - time warning
-// a.p(7) - level complete
-// a.p(8) - twinkle (auto-triggered)
 
-
-// Ultra-golfed game for JS13K
 class G {
   constructor() {
     this.c = document.getElementById("gameCanvas");
     this.ctx = this.c.getContext("2d");
+    this.easyMode = localStorage.getItem("easyMode") === "1";
+    this.pausedAt = 0;
+    if (this.easyMode) {
+      this.pausedAt = 0;
+    }
 
-    // Systems
     this.input = { mouse: { x: 400, y: 300 } };
     this.c.addEventListener("mousemove", (e) => {
       let rect = this.c.getBoundingClientRect();
       this.input.mouse.x = e.clientX - rect.left;
       this.input.mouse.y = e.clientY - rect.top;
-      this.orbitals.setMouse(this.input.mouse.x, this.input.mouse.y);
     });
 
     this.audio = new A();
-    this.orbitals = new O(this.c, this.audio);
+    this.o = new O(this.c, this.audio, this);
     this.tutorial = new T(this);
+    this.glossary = new Glossary();
 
     this.electrons = [];
     this.particles = [];
@@ -1146,53 +1404,54 @@ class G {
     this.spawn();
     this.spawnParticles();
 
-    // Click handler
-    this.c.addEventListener("click", async () => {
+    this.c.addEventListener("click", async (e) => {
       if (!this.audio.c) {
         await this.audio.i();
         this.audio.m();
       }
 
-      if (this.orbitals.tip) {
-        this.orbitals.tip = 0;
-        this.audio.p(5);
+      if (this.o.tip) {
+        this.o.tip = 0;
+        this.audio.p(5, 0.6);
         return;
       }
 
-      let timeLeft = Math.max(0, this.orbitals.T - this.orbitals.t);
-      if (this.orbitals.checkComplete()) {
-        this.audio.p(7); // level complete (need to add this sound)
-        this.orbitals.nextLevel();
+      let timeLeft = Math.max(0, this.o.T - this.o.t);
+      if (!this.easyMode && timeLeft <= 0) {
+        this.audio.p(6, 0.7);
+        this.o.r();
         this.spawn();
-      } else if (timeLeft <= 0) {
-        this.audio.p(6); // game over
-        this.orbitals.r();
+      } else if (this.o.checkComplete()) {
+        this.audio.p(7, 0.8);
+        this.o.nextLevel();
         this.spawn();
       }
     });
 
-    // Keyboard
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        if (this.orbitals.tip) {
-          this.orbitals.tip = 0;
+        if (this.o.tip) {
+          this.o.tip = 0;
         } else {
-          this.tutorial.show();
+          this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
+      } else if (e.key === "g" || e.key === "G") {
+        this.glossary.toggle();
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
-      } else if (e.key === "r" || e.key === "R") {
-        this.orbitals.l = 0;
-        this.orbitals.s = 0;
-        this.orbitals.r();
-        this.spawn();
-        this.audio.p(5);
+      } else if (e.key === "t" || e.key === "T") {
+        if (!this.easyMode) {
+          this.pausedAt = this.o.t;
+        } else {
+          this.o.t = this.pausedAt;
+        }
+        this.easyMode = !this.easyMode;
+        localStorage.setItem("easyMode", this.easyMode ? "1" : "0");
       }
     });
 
     this.loop();
 
-    // Show tutorial
     setTimeout(() => {
       if (this.tutorial.shouldShow()) this.tutorial.show();
     }, 1000);
@@ -1200,9 +1459,9 @@ class G {
 
   spawn() {
     this.electrons = [];
-    let types = [0, 1]; // blue,orange
+    let types = [0, 1];
     types.forEach((type) => {
-      let count = this.orbitals.o.filter((o) => o.type === type).length;
+      let count = this.o.o.filter((o) => o.type === type).length;
       for (let i = 0; i < count; i++) {
         let x,
           y,
@@ -1235,7 +1494,7 @@ class G {
   }
 
   nearOrbital(x, y, minDist) {
-    return this.orbitals.o.some((o) => {
+    return this.o.o.some((o) => {
       let dx = x - o.x,
         dy = y - o.y;
       return Math.sqrt(dx * dx + dy * dy) < minDist;
@@ -1258,15 +1517,8 @@ class G {
   }
 
   update() {
-    this.orbitals.update();
+    this.o.u();
 
-    // Check for knocked out electron respawn (simple)
-    if (this.orbitals.k && this.orbitals.t >= this.orbitals.k.time) {
-      this.respawn(this.orbitals.k.type);
-      this.orbitals.k = null;
-    }
-
-    // Update particles
     for (let p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
@@ -1278,14 +1530,10 @@ class G {
       if (p.y > this.c.height) p.y = 0;
     }
 
-    // Update electrons
     for (let e of this.electrons) {
-      e.update(
-        this.input.mouse.x,
-        this.input.mouse.y,
-        this.orbitals.o,
-        this.orbitals
-      );
+      e.u(this.input.mouse, this.o.o, this.o);
+
+      this.o.applyStormForces(e);
     }
   }
 
@@ -1293,7 +1541,6 @@ class G {
     this.ctx.fillStyle = "rgb(10,10,20)";
     this.ctx.fillRect(0, 0, this.c.width, this.c.height);
 
-    // Background particles
     this.ctx.save();
     for (let p of this.particles) {
       let twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(p.phase));
@@ -1304,34 +1551,73 @@ class G {
     }
     this.ctx.restore();
 
-    // Cursor glow
-    if (!this.orbitals.tip) {
-      this.ctx.save();
-      this.ctx.shadowColor = "rgba(100,150,255,.6)";
-      this.ctx.shadowBlur = 20;
-      this.ctx.fillStyle = "rgba(100,150,255,.2)";
-      this.ctx.beginPath();
-      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, 6.28);
-      this.ctx.fill();
-      this.ctx.restore();
+    if (!this.o.tip) {
+      let ctx = this.ctx;
+      ctx.save();
+      ctx.translate(this.input.mouse.x, this.input.mouse.y);
+
+      // Ball of lightning effect
+      let time = Date.now() * 0.003; // Much slower animation
+
+      // Glowing white core with cyan aura
+      ctx.shadowColor = "rgba(0,255,255,0.9)";
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.beginPath();
+      ctx.arc(0, 0, 5 + Math.sin(time) * 0.8, 0, 6.28);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Erratic cyan lightning sparks
+      ctx.strokeStyle = "rgba(0,255,255,0.8)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 8; i++) {
+        // More bolts for chaos
+        // Random angle instead of evenly spaced
+        let baseAngle = (time * 0.5 + i * 1.3) % 6.28;
+        let randomOffset =
+          Math.sin(time * 3 + i * 2.7) * 0.8 + (Math.random() - 0.5) * 1.2;
+        let angle = baseAngle + randomOffset;
+
+        // Varying length for unpredictability
+        let length = 4 + Math.random() * 6 + Math.sin(time * 2 + i) * 2;
+
+        // Create jagged lightning path
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+
+        let segments = 2 + Math.floor(Math.random() * 2); // 2-3 segments per bolt
+        let x = 0,
+          y = 0;
+
+        for (let seg = 0; seg < segments; seg++) {
+          let segmentLength = length / segments;
+          let segmentAngle = angle + (Math.random() - 0.5) * 0.4; // Zigzag
+          x += Math.cos(segmentAngle) * segmentLength;
+          y += Math.sin(segmentAngle) * segmentLength;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
 
-    this.orbitals.draw(this.ctx);
+    this.o.d(this.ctx);
 
-    // Draw electrons
-    if (!this.orbitals.tip) {
+    if (!this.o.tip) {
       for (let e of this.electrons) {
-        e.draw(this.ctx);
+        e.d(this.ctx);
       }
     }
 
-    // Instructions
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue↓ attract, Orange↑ repel | M:Mute R:Restart ESC:Help",
+      "Blue=s Orange=p phases | G:Terms M:Mute T:Timer ESC:Tutorial",
       20,
-      this.c.height - 20
+      580
     );
   }
 
@@ -1341,9 +1627,7 @@ class G {
     requestAnimationFrame(() => this.loop());
   }
 
-  start() {
-    console.log("Game started");
-  }
+  start() {}
 }
 
 

@@ -1,21 +1,24 @@
-// Ultra-golfed game for JS13K
 class G {
   constructor() {
     this.c = document.getElementById("gameCanvas");
     this.ctx = this.c.getContext("2d");
+    this.easyMode = localStorage.getItem("easyMode") === "1";
+    this.pausedAt = 0;
+    if (this.easyMode) {
+      this.pausedAt = 0;
+    }
 
-    // Systems
     this.input = { mouse: { x: 400, y: 300 } };
     this.c.addEventListener("mousemove", (e) => {
       let rect = this.c.getBoundingClientRect();
       this.input.mouse.x = e.clientX - rect.left;
       this.input.mouse.y = e.clientY - rect.top;
-      this.orbitals.setMouse(this.input.mouse.x, this.input.mouse.y);
     });
 
     this.audio = new A();
-    this.orbitals = new O(this.c, this.audio);
+    this.o = new O(this.c, this.audio, this);
     this.tutorial = new T(this);
+    this.glossary = new Glossary();
 
     this.electrons = [];
     this.particles = [];
@@ -23,53 +26,54 @@ class G {
     this.spawn();
     this.spawnParticles();
 
-    // Click handler
-    this.c.addEventListener("click", async () => {
+    this.c.addEventListener("click", async (e) => {
       if (!this.audio.c) {
         await this.audio.i();
         this.audio.m();
       }
 
-      if (this.orbitals.tip) {
-        this.orbitals.tip = 0;
-        this.audio.p(5);
+      if (this.o.tip) {
+        this.o.tip = 0;
+        this.audio.p(5, 0.6);
         return;
       }
 
-      let timeLeft = Math.max(0, this.orbitals.T - this.orbitals.t);
-      if (this.orbitals.checkComplete()) {
-        this.audio.p(7); // level complete (need to add this sound)
-        this.orbitals.nextLevel();
+      let timeLeft = Math.max(0, this.o.T - this.o.t);
+      if (!this.easyMode && timeLeft <= 0) {
+        this.audio.p(6, 0.7);
+        this.o.r();
         this.spawn();
-      } else if (timeLeft <= 0) {
-        this.audio.p(6); // game over
-        this.orbitals.r();
+      } else if (this.o.checkComplete()) {
+        this.audio.p(7, 0.8);
+        this.o.nextLevel();
         this.spawn();
       }
     });
 
-    // Keyboard
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        if (this.orbitals.tip) {
-          this.orbitals.tip = 0;
+        if (this.o.tip) {
+          this.o.tip = 0;
         } else {
-          this.tutorial.show();
+          this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
+      } else if (e.key === "g" || e.key === "G") {
+        this.glossary.toggle();
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
-      } else if (e.key === "r" || e.key === "R") {
-        this.orbitals.l = 0;
-        this.orbitals.s = 0;
-        this.orbitals.r();
-        this.spawn();
-        this.audio.p(5);
+      } else if (e.key === "t" || e.key === "T") {
+        if (!this.easyMode) {
+          this.pausedAt = this.o.t;
+        } else {
+          this.o.t = this.pausedAt;
+        }
+        this.easyMode = !this.easyMode;
+        localStorage.setItem("easyMode", this.easyMode ? "1" : "0");
       }
     });
 
     this.loop();
 
-    // Show tutorial
     setTimeout(() => {
       if (this.tutorial.shouldShow()) this.tutorial.show();
     }, 1000);
@@ -77,9 +81,9 @@ class G {
 
   spawn() {
     this.electrons = [];
-    let types = [0, 1]; // blue,orange
+    let types = [0, 1];
     types.forEach((type) => {
-      let count = this.orbitals.o.filter((o) => o.type === type).length;
+      let count = this.o.o.filter((o) => o.type === type).length;
       for (let i = 0; i < count; i++) {
         let x,
           y,
@@ -112,7 +116,7 @@ class G {
   }
 
   nearOrbital(x, y, minDist) {
-    return this.orbitals.o.some((o) => {
+    return this.o.o.some((o) => {
       let dx = x - o.x,
         dy = y - o.y;
       return Math.sqrt(dx * dx + dy * dy) < minDist;
@@ -135,15 +139,8 @@ class G {
   }
 
   update() {
-    this.orbitals.update();
+    this.o.u();
 
-    // Check for knocked out electron respawn (simple)
-    if (this.orbitals.k && this.orbitals.t >= this.orbitals.k.time) {
-      this.respawn(this.orbitals.k.type);
-      this.orbitals.k = null;
-    }
-
-    // Update particles
     for (let p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
@@ -155,14 +152,10 @@ class G {
       if (p.y > this.c.height) p.y = 0;
     }
 
-    // Update electrons
     for (let e of this.electrons) {
-      e.update(
-        this.input.mouse.x,
-        this.input.mouse.y,
-        this.orbitals.o,
-        this.orbitals
-      );
+      e.u(this.input.mouse, this.o.o, this.o);
+
+      this.o.applyStormForces(e);
     }
   }
 
@@ -170,7 +163,6 @@ class G {
     this.ctx.fillStyle = "rgb(10,10,20)";
     this.ctx.fillRect(0, 0, this.c.width, this.c.height);
 
-    // Background particles
     this.ctx.save();
     for (let p of this.particles) {
       let twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(p.phase));
@@ -181,34 +173,73 @@ class G {
     }
     this.ctx.restore();
 
-    // Cursor glow
-    if (!this.orbitals.tip) {
-      this.ctx.save();
-      this.ctx.shadowColor = "rgba(100,150,255,.6)";
-      this.ctx.shadowBlur = 20;
-      this.ctx.fillStyle = "rgba(100,150,255,.2)";
-      this.ctx.beginPath();
-      this.ctx.arc(this.input.mouse.x, this.input.mouse.y, 15, 0, 6.28);
-      this.ctx.fill();
-      this.ctx.restore();
+    if (!this.o.tip) {
+      let ctx = this.ctx;
+      ctx.save();
+      ctx.translate(this.input.mouse.x, this.input.mouse.y);
+
+      // Ball of lightning effect
+      let time = Date.now() * 0.003; // Much slower animation
+
+      // Glowing white core with cyan aura
+      ctx.shadowColor = "rgba(0,255,255,0.9)";
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.beginPath();
+      ctx.arc(0, 0, 5 + Math.sin(time) * 0.8, 0, 6.28);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Erratic cyan lightning sparks
+      ctx.strokeStyle = "rgba(0,255,255,0.8)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 8; i++) {
+        // More bolts for chaos
+        // Random angle instead of evenly spaced
+        let baseAngle = (time * 0.5 + i * 1.3) % 6.28;
+        let randomOffset =
+          Math.sin(time * 3 + i * 2.7) * 0.8 + (Math.random() - 0.5) * 1.2;
+        let angle = baseAngle + randomOffset;
+
+        // Varying length for unpredictability
+        let length = 4 + Math.random() * 6 + Math.sin(time * 2 + i) * 2;
+
+        // Create jagged lightning path
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+
+        let segments = 2 + Math.floor(Math.random() * 2); // 2-3 segments per bolt
+        let x = 0,
+          y = 0;
+
+        for (let seg = 0; seg < segments; seg++) {
+          let segmentLength = length / segments;
+          let segmentAngle = angle + (Math.random() - 0.5) * 0.4; // Zigzag
+          x += Math.cos(segmentAngle) * segmentLength;
+          y += Math.sin(segmentAngle) * segmentLength;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
 
-    this.orbitals.draw(this.ctx);
+    this.o.d(this.ctx);
 
-    // Draw electrons
-    if (!this.orbitals.tip) {
+    if (!this.o.tip) {
       for (let e of this.electrons) {
-        e.draw(this.ctx);
+        e.d(this.ctx);
       }
     }
 
-    // Instructions
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue↓ attract, Orange↑ repel | M:Mute R:Restart ESC:Help",
+      "Blue=s Orange=p phases | G:Terms M:Mute T:Timer ESC:Tutorial",
       20,
-      this.c.height - 20
+      580
     );
   }
 
@@ -218,7 +249,5 @@ class G {
     requestAnimationFrame(() => this.loop());
   }
 
-  start() {
-    console.log("Game started");
-  }
+  start() {}
 }

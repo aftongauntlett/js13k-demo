@@ -22,24 +22,24 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 ## Features (Fully Optimized) ✨
 
 🎵 **Procedural Audio** - Musical chord progressions and sound effects from code alone  
-🧪 **Real Atomic Physics** - Accurate Bohr model with proper electron shell mechanics  
-🎮 **Smooth Gameplay** - Electromagnetic attraction/repulsion with advanced collision physics  
-⚛️ **Educational Value** - Learn 1s, 2s, 2p orbitals through interactive gameplay  
-🎨 **Visual Polish** - Shell outlines, orbital shake effects, particle systems under 11KB!
+🧪 **Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
+🎮 **Intuitive Controls** - Mouse-based electromagnetic field simulation  
+⚛️ **Educational Value** - Learn 1s, 2s, 2p orbitals and quantum mechanical rules  
+🎨 **Visual Feedback** - Orbital labels, rule violations, particle systems under 13KB!
 
 ## How to Play 🎮
 
-- **Blue electrons** are attracted to your mouse (electromagnetic attraction)
-- **Orange electrons** are repelled by your mouse (electromagnetic repulsion)
-- **Orange orbital timing** - Orange orbitals require precise timing through rotating gaps
-- **Capture assistance** - Orange orbitals slow down when mouse is nearby for easier timing
-- Guide electrons into orbital rings to fill electron shells
-- Electrons automatically capture when they contact a matching orbital (blue: instant, orange: through gaps)
-- **Two-hit knockout system** - Hit an occupied orbital twice to knock out the electron
-  - First hit: Target shakes visually with sound feedback
-  - Second hit: Electron gets knocked out and respawns after delay
-- Complete atoms by filling all orbitals with proper electron configuration
+- **Blue electrons (s-orbitals)** are attracted to your mouse cursor
+- **Orange electrons (p-orbitals)** are repelled by your mouse cursor
+- Guide electrons into matching colored orbitals to build atoms
+- Follow real electron configuration rules: 1s² → 2s² → 2p⁶
+- Orbitals glow red when they cannot accept electrons due to quantum rules
+- **Two-hit knockout system** - Hit occupied orbitals twice to remove electrons
+  - First hit: Orbital shakes with audio feedback
+  - Second hit: Electron is ejected and respawns elsewhere
+- Complete atoms by filling all orbitals according to the Aufbau principle
 - Learn real atomic structure: H (1s¹), He (1s²), Li (1s² 2s¹), C (1s² 2s² 2p²), N (1s² 2s² 2p³)
+- **Press 'G' for Glossary** - Scientific explanations of quantum principles
 - **Press 'M' to toggle mute** - Experience procedural ambient music!
 
 ## Educational Elements ⚛️

@@ -1,4 +1,3 @@
-// Ultra-golfed audio system for JS13K
 class A {
   constructor() {
     this.c = null;
@@ -14,7 +13,7 @@ class A {
     this.g.gain.value = 0.3;
     this.g.connect(this.c.destination);
 
-    // Create echo bus for spatial effect
+    // Echo bus
     this.delay = this.c.createDelay(0.5);
     this.delay.delayTime.value = 0.15;
     this.feedback = this.c.createGain();
@@ -23,21 +22,19 @@ class A {
     this.feedback.connect(this.delay);
     this.delay.connect(this.g);
 
-    // Create all SFX buffers - fast attacks, bell-like releases
     this.s = [
-      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // 0: collision
-      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // 1: capture
-      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // 2: knocked out
-      this.b([3, 207, 0.3, 0.35, 0.002, 0.2]), // 3: wrong electron
-      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // 4: orbital stun
-      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // 5: UI hover
-      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // 6: time warning
-      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // 7: level complete
-      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // 8: twinkle for captures
+      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // collision
+      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // capture
+      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // knocked out
+      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]), // wrong electron
+      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // orbital stun
+      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // UI hover
+      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // time warning
+      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // level complete
+      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // twinkle
     ];
   }
 
-  // Create buffer from params [wave,freq,dur,vol,attack,release]
   b(p) {
     const l = this.c.sampleRate * p[2];
     const buf = this.c.createBuffer(1, l, this.c.sampleRate);
@@ -61,8 +58,7 @@ class A {
     return buf;
   }
 
-  // Play SFX by index with optional echo
-  p(i, v = 1, echo = false) {
+  p(i, e, echo) {
     if (!this.c || this.muted) return;
 
     // Rate limiting to prevent audio spam
@@ -74,7 +70,7 @@ class A {
     const s = this.c.createBufferSource();
     const g = this.c.createGain();
     s.buffer = this.s[i];
-    g.gain.value = v;
+    g.gain.value = isFinite(e) ? e : 0.5;
     s.connect(g);
     g.connect(this.g);
     if (echo && this.delay) g.connect(this.delay);
@@ -233,14 +229,3 @@ class A {
     return this.muted;
   }
 }
-
-// Usage shortcuts
-// a.p(0) - collision
-// a.p(1) - capture (with auto-twinkle)
-// a.p(2) - knocked out
-// a.p(3) - wrong electron
-// a.p(4) - orbital stun
-// a.p(5) - UI hover
-// a.p(6) - time warning
-// a.p(7) - level complete
-// a.p(8) - twinkle (auto-triggered)

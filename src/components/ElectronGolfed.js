@@ -1,4 +1,3 @@
-// Ultra-golfed electron for JS13K
 class E {
   constructor(x, y, type, a) {
     this.x = x;
@@ -15,8 +14,9 @@ class E {
     this.mouseInfluenced = 0;
   }
 
-  update(mx, my, orbitals, orbitalSys) {
+  u(mouse, orbitals, game) {
     if (this.captured) return;
+    if (!orbitals || !Array.isArray(orbitals)) return;
 
     if (this.inactive > 0) {
       this.inactive -= 1 / 60;
@@ -28,9 +28,8 @@ class E {
       return;
     }
 
-    // Mouse interaction
-    let dx = mx - this.x,
-      dy = my - this.y,
+    let dx = mouse.x - this.x,
+      dy = mouse.y - this.y,
       dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 120) {
       this.mouseInfluenced = 1;
@@ -39,84 +38,91 @@ class E {
         fy = (dy / dist) * force;
 
       if (this.type === 0) {
-        // blue - attract to mouse
         this.vx += fx * 0.5;
         this.vy += fy * 0.5;
       } else {
-        // orange - repel from mouse
         this.vx -= fx * 0.5;
         this.vy -= fy * 0.5;
       }
     } else this.mouseInfluenced = 0;
 
-    // Orbital interactions
     for (let orb of orbitals) {
       let dx = orb.x - this.x,
         dy = orb.y - this.y,
         dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Attraction/repulsion forces (applied to all orbitals within range)
-      if (!orb.stunned && dist < 60) {
+      if (orb.stunned <= 0.1 && dist < 60) {
         let force = (0.1 * (60 - dist)) / 60;
         let fx = (dx / dist) * force,
           fy = (dy / dist) * force;
 
         if (this.type === orb.type) {
-          // attract to matching orbital
           this.vx += fx;
           this.vy += fy;
         } else {
-          // repel from wrong orbital
           this.vx -= fx * 0.5;
           this.vy -= fy * 0.5;
         }
       }
 
-      // Collision detection for capture or hitting
       if (dist < 25) {
-        if (!orb.occupied && !orb.stunned && this.type === orb.type) {
-          // Check if we can actually enter this orbital (important for orange orbitals)
-          if (orbitalSys.canEnter(orb, this.x, this.y)) {
-            // Capture - matching type in empty orbital
+        if (!orb.occupied && orb.stunned <= 0.1 && this.type === orb.type) {
+          if (game.canEnter(orb, this.x, this.y)) {
             orb.occupied = 1;
             this.captured = 1;
-            this.a?.p(1);
+
+            // Reset stun counter on successful capture
+            orb.stunCount = 0;
+
+            this.a?.p(1, 0.5);
+            return;
+          } else {
+            let repelForce = 8;
+            let repelX = ((this.x - orb.x) / dist) * repelForce;
+            let repelY = ((this.y - orb.y) / dist) * repelForce;
+            this.vx = repelX;
+            this.vy = repelY;
+
+            let pushOut = 30;
+            this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
+            this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
+
+            this.inactive = 0.3;
+            this.inactiveTime = 0.3;
+            this.a?.p(3, 0.3);
+            game.stun(orb, false);
             return;
           }
         } else if (!orb.occupied && this.type !== orb.type) {
-          // Wrong type hitting empty orbital - bounce off with strong force
-          let repelForce = 12; // Stronger force to ensure they get out
+          let repelForce = 12;
           let repelX = ((this.x - orb.x) / dist) * repelForce;
           let repelY = ((this.y - orb.y) / dist) * repelForce;
-          this.vx = repelX; // Set velocity instead of adding to ensure strong bounce
+          this.vx = repelX;
           this.vy = repelY;
 
-          // Push electron outside collision zone immediately
-          let pushOut = 30; // Push to safe distance
+          let pushOut = 30;
           this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
           this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
 
-          this.inactive = 0.3; // Brief inactive to prevent re-collision
+          this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          this.a?.p(3); // Wrong electron sound
-          orbitalSys.stun(orb, false);
+          this.a?.p(3, 0.3);
+          game.stun(orb, false);
           return;
         } else if (orb.occupied) {
-          // Hit occupied orbital - bounce off with strong force
-          let repelForce = 12; // Stronger force to ensure they get out
+          let repelForce = 12;
           let repelX = ((this.x - orb.x) / dist) * repelForce;
           let repelY = ((this.y - orb.y) / dist) * repelForce;
-          this.vx = repelX; // Set velocity instead of adding
+          this.vx = repelX;
           this.vy = repelY;
 
-          // Push electron outside collision zone immediately
-          let pushOut = 30; // Push to safe distance
+          let pushOut = 30;
           this.x = orb.x + ((this.x - orb.x) / dist) * pushOut;
           this.y = orb.y + ((this.y - orb.y) / dist) * pushOut;
 
-          this.inactive = 0.3; // Brief inactive to prevent multiple hits
+          this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          orbitalSys.hit(orb);
+          game.hit(orb);
           return;
         }
       }
@@ -132,28 +138,30 @@ class E {
     let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     let now = Date.now();
 
-    if (this.x < this.r) {
-      this.x = this.r;
+    // Canvas edges
+    let r = this.r;
+    if (this.x < r) {
+      this.x = r;
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
-    if (this.x > 800 - this.r) {
-      this.x = 800 - this.r;
+    if (this.x > 800 - r) {
+      this.x = 800 - r;
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
-    if (this.y < this.r) {
-      this.y = this.r;
+    if (this.y < r) {
+      this.y = r;
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
-    if (this.y > 600 - this.r) {
-      this.y = 600 - this.r;
+    if (this.y > 600 - r) {
+      this.y = 600 - r;
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
 
-    // UI boundaries
+    // UI areas
     if (this.x < 220 && this.y < 120) {
       if (this.y > 110) {
         this.y = 120;
@@ -168,6 +176,16 @@ class E {
       this.y = 550;
       this.vy = -Math.abs(this.vy);
     }
+    if (this.x > 580 && this.y < 100) {
+      if (this.y > 90) {
+        this.y = 100;
+        this.vy = Math.abs(this.vy);
+      }
+      if (this.x < 590) {
+        this.x = 580;
+        this.vx = -Math.abs(this.vx);
+      }
+    }
   }
 
   sound(speed, now) {
@@ -177,7 +195,7 @@ class E {
     }
   }
 
-  draw(ctx) {
+  d(ctx) {
     if (this.captured) return;
 
     ctx.save();
@@ -221,12 +239,12 @@ class E {
     ctx.arc(this.x, this.y, this.r, 0, 6.28);
     ctx.fill();
 
-    // Spin indicator
+    // Orbital type indicator
     if (!this.inactive) {
       ctx.fillStyle = c[1];
       ctx.font = "10px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(this.type ? "↑" : "↓", this.x, this.y + 3);
+      ctx.fillText(this.type ? "p" : "s", this.x, this.y + 3);
     }
 
     ctx.restore();
