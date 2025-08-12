@@ -332,15 +332,13 @@ class T {
       "Complete all for Infinite",
       "Storms create interference",
       "Navigate purple fields",
-      "Continue",
-      "Start Game",
     ];
     this.d = [
-      [0, 1, 2, 18], // Welcome - Continue
-      [3, 4, 2, 18], // Orbital Types - Continue
-      [6, 7, 3, 18], // How to Play - Continue
-      [10, 11, 3, 18], // Pro Tips - Continue
-      [14, 15, 3, 19], // Advanced - Start Game
+      [0, 1, 2],
+      [3, 4, 3],
+      [7, 8, 3],
+      [11, 12, 3],
+      [15, 16, 3],
     ];
   }
 
@@ -408,7 +406,7 @@ class T {
     }
     this.o.querySelector(".content").innerHTML = content;
     this.o.querySelector(".prev").style.display = this.s > 0 ? "block" : "none";
-    this.o.querySelector(".next").textContent = this.t[step[3]];
+    this.o.querySelector(".next").textContent = "Continue";
   }
 
   next() {
@@ -1158,7 +1156,6 @@ class A {
     this.g.gain.value = 0.3;
     this.g.connect(this.c.destination);
 
-    // Echo bus
     this.delay = this.c.createDelay(0.5);
     this.delay.delayTime.value = 0.15;
     this.feedback = this.c.createGain();
@@ -1168,15 +1165,15 @@ class A {
     this.delay.connect(this.g);
 
     this.s = [
-      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // collision
-      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // capture
-      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // knocked out
-      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]), // wrong electron
-      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // orbital stun
-      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // UI hover
-      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // time warning
-      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // level complete
-      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // twinkle
+      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]),
+      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]),
+      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]),
+      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]),
+      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]),
+      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]),
+      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]),
+      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]),
+      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]),
     ];
   }
 
@@ -1189,10 +1186,9 @@ class A {
 
     for (let i = 0; i < l; i++) {
       let v;
-      if (p[0] == 1)
-        v = Math.sin((i * p[1] * 6.28) / this.c.sampleRate); // sine
-      else if (p[0] == 2) v = Math.random() * 2 - 1; // noise
-      else v = (((i * p[1] * 4) / this.c.sampleRate) % 2) - 1; // sawtooth
+      if (p[0] == 1) v = Math.sin((i * p[1] * 6.28) / this.c.sampleRate);
+      else if (p[0] == 2) v = Math.random() * 2 - 1;
+      else v = (((i * p[1] * 4) / this.c.sampleRate) % 2) - 1;
 
       let e = 1;
       if (i < a) e = i / a;
@@ -1206,10 +1202,9 @@ class A {
   p(i, e, echo) {
     if (!this.c || this.muted) return;
 
-    // Rate limiting to prevent audio spam
     const now = Date.now();
     this.lastPlay = this.lastPlay || {};
-    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return; // 100ms cooldown per sound
+    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return;
     this.lastPlay[i] = now;
 
     const s = this.c.createBufferSource();
@@ -1221,7 +1216,6 @@ class A {
     if (echo && this.delay) g.connect(this.delay);
     s.start();
 
-    // Add twinkle for successful captures
     if (i === 1) {
       setTimeout(() => this.p(8, 0.6, true), 100);
     }
@@ -1382,6 +1376,13 @@ class G {
     this.ctx = this.c.getContext("2d");
     this.easyMode = localStorage.getItem("easyMode") === "1";
     this.pausedAt = 0;
+
+    // Ensure timer is ON by default for new players
+    if (localStorage.getItem("easyMode") === null) {
+      localStorage.setItem("easyMode", "0");
+      this.easyMode = false;
+    }
+
     if (this.easyMode) {
       this.pausedAt = 0;
     }
@@ -1432,6 +1433,8 @@ class G {
       if (e.key === "Escape") {
         if (this.o.tip) {
           this.o.tip = 0;
+        } else if (this.glossary.isVisible()) {
+          this.glossary.hide();
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
@@ -1556,10 +1559,8 @@ class G {
       ctx.save();
       ctx.translate(this.input.mouse.x, this.input.mouse.y);
 
-      // Ball of lightning effect
-      let time = Date.now() * 0.003; // Much slower animation
+      let time = Date.now() * 0.003;
 
-      // Glowing white core with cyan aura
       ctx.shadowColor = "rgba(0,255,255,0.9)";
       ctx.shadowBlur = 12;
       ctx.fillStyle = "rgba(255,255,255,0.95)";
@@ -1568,31 +1569,26 @@ class G {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Erratic cyan lightning sparks
       ctx.strokeStyle = "rgba(0,255,255,0.8)";
       ctx.lineWidth = 1.5;
       for (let i = 0; i < 8; i++) {
-        // More bolts for chaos
-        // Random angle instead of evenly spaced
         let baseAngle = (time * 0.5 + i * 1.3) % 6.28;
         let randomOffset =
           Math.sin(time * 3 + i * 2.7) * 0.8 + (Math.random() - 0.5) * 1.2;
         let angle = baseAngle + randomOffset;
 
-        // Varying length for unpredictability
         let length = 4 + Math.random() * 6 + Math.sin(time * 2 + i) * 2;
 
-        // Create jagged lightning path
         ctx.beginPath();
         ctx.moveTo(0, 0);
 
-        let segments = 2 + Math.floor(Math.random() * 2); // 2-3 segments per bolt
+        let segments = 2 + Math.floor(Math.random() * 2);
         let x = 0,
           y = 0;
 
         for (let seg = 0; seg < segments; seg++) {
           let segmentLength = length / segments;
-          let segmentAngle = angle + (Math.random() - 0.5) * 0.4; // Zigzag
+          let segmentAngle = angle + (Math.random() - 0.5) * 0.4;
           x += Math.cos(segmentAngle) * segmentLength;
           y += Math.sin(segmentAngle) * segmentLength;
           ctx.lineTo(x, y);
@@ -1637,9 +1633,8 @@ window.game = new G();
 window.tutorial = window.game.tutorial; // Make tutorial globally accessible
   </script>
     <script>
-      // Start the game
       window.game = new G();
-      window.tutorial = window.game.tutorial; // Make tutorial globally accessible
+      window.tutorial = window.game.tutorial;
     </script>
   </body>
 </html>

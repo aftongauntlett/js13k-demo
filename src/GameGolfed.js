@@ -4,6 +4,13 @@ class G {
     this.ctx = this.c.getContext("2d");
     this.easyMode = localStorage.getItem("easyMode") === "1";
     this.pausedAt = 0;
+
+    // Ensure timer is ON by default for new players
+    if (localStorage.getItem("easyMode") === null) {
+      localStorage.setItem("easyMode", "0");
+      this.easyMode = false;
+    }
+
     if (this.easyMode) {
       this.pausedAt = 0;
     }
@@ -54,6 +61,8 @@ class G {
       if (e.key === "Escape") {
         if (this.o.tip) {
           this.o.tip = 0;
+        } else if (this.glossary.isVisible()) {
+          this.glossary.hide();
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
@@ -178,10 +187,8 @@ class G {
       ctx.save();
       ctx.translate(this.input.mouse.x, this.input.mouse.y);
 
-      // Ball of lightning effect
-      let time = Date.now() * 0.003; // Much slower animation
+      let time = Date.now() * 0.003;
 
-      // Glowing white core with cyan aura
       ctx.shadowColor = "rgba(0,255,255,0.9)";
       ctx.shadowBlur = 12;
       ctx.fillStyle = "rgba(255,255,255,0.95)";
@@ -190,31 +197,26 @@ class G {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Erratic cyan lightning sparks
       ctx.strokeStyle = "rgba(0,255,255,0.8)";
       ctx.lineWidth = 1.5;
       for (let i = 0; i < 8; i++) {
-        // More bolts for chaos
-        // Random angle instead of evenly spaced
         let baseAngle = (time * 0.5 + i * 1.3) % 6.28;
         let randomOffset =
           Math.sin(time * 3 + i * 2.7) * 0.8 + (Math.random() - 0.5) * 1.2;
         let angle = baseAngle + randomOffset;
 
-        // Varying length for unpredictability
         let length = 4 + Math.random() * 6 + Math.sin(time * 2 + i) * 2;
 
-        // Create jagged lightning path
         ctx.beginPath();
         ctx.moveTo(0, 0);
 
-        let segments = 2 + Math.floor(Math.random() * 2); // 2-3 segments per bolt
+        let segments = 2 + Math.floor(Math.random() * 2);
         let x = 0,
           y = 0;
 
         for (let seg = 0; seg < segments; seg++) {
           let segmentLength = length / segments;
-          let segmentAngle = angle + (Math.random() - 0.5) * 0.4; // Zigzag
+          let segmentAngle = angle + (Math.random() - 0.5) * 0.4;
           x += Math.cos(segmentAngle) * segmentLength;
           y += Math.sin(segmentAngle) * segmentLength;
           ctx.lineTo(x, y);

@@ -13,7 +13,6 @@ class A {
     this.g.gain.value = 0.3;
     this.g.connect(this.c.destination);
 
-    // Echo bus
     this.delay = this.c.createDelay(0.5);
     this.delay.delayTime.value = 0.15;
     this.feedback = this.c.createGain();
@@ -23,15 +22,15 @@ class A {
     this.delay.connect(this.g);
 
     this.s = [
-      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]), // collision
-      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]), // capture
-      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]), // knocked out
-      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]), // wrong electron
-      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]), // orbital stun
-      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]), // UI hover
-      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]), // time warning
-      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]), // level complete
-      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]), // twinkle
+      this.b([1, 800, 0.3, 0.3, 0.002, 0.2]),
+      this.b([1, 659, 0.35, 0.4, 0.005, 0.25]),
+      this.b([2, 311, 0.25, 0.3, 0.002, 0.15]),
+      this.b([1, 440, 0.25, 0.2, 0.01, 0.3]),
+      this.b([1, 247, 0.2, 0.25, 0.002, 0.12]),
+      this.b([1, 1175, 0.12, 0.15, 0.001, 0.08]),
+      this.b([1, 698, 0.35, 0.4, 0.003, 0.25]),
+      this.b([1, 523, 0.5, 0.5, 0.01, 0.3]),
+      this.b([1, 1318, 0.4, 0.3, 0.002, 0.3]),
     ];
   }
 
@@ -44,10 +43,9 @@ class A {
 
     for (let i = 0; i < l; i++) {
       let v;
-      if (p[0] == 1)
-        v = Math.sin((i * p[1] * 6.28) / this.c.sampleRate); // sine
-      else if (p[0] == 2) v = Math.random() * 2 - 1; // noise
-      else v = (((i * p[1] * 4) / this.c.sampleRate) % 2) - 1; // sawtooth
+      if (p[0] == 1) v = Math.sin((i * p[1] * 6.28) / this.c.sampleRate);
+      else if (p[0] == 2) v = Math.random() * 2 - 1;
+      else v = (((i * p[1] * 4) / this.c.sampleRate) % 2) - 1;
 
       let e = 1;
       if (i < a) e = i / a;
@@ -61,10 +59,9 @@ class A {
   p(i, e, echo) {
     if (!this.c || this.muted) return;
 
-    // Rate limiting to prevent audio spam
     const now = Date.now();
     this.lastPlay = this.lastPlay || {};
-    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return; // 100ms cooldown per sound
+    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return;
     this.lastPlay[i] = now;
 
     const s = this.c.createBufferSource();
@@ -76,7 +73,6 @@ class A {
     if (echo && this.delay) g.connect(this.delay);
     s.start();
 
-    // Add twinkle for successful captures
     if (i === 1) {
       setTimeout(() => this.p(8, 0.6, true), 100);
     }

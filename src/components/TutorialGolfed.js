@@ -25,15 +25,13 @@ class T {
       "Complete all for Infinite",
       "Storms create interference",
       "Navigate purple fields",
-      "Continue",
-      "Start Game",
     ];
     this.d = [
-      [0, 1, 2, 18], // Welcome - Continue
-      [3, 4, 2, 18], // Orbital Types - Continue
-      [6, 7, 3, 18], // How to Play - Continue
-      [10, 11, 3, 18], // Pro Tips - Continue
-      [14, 15, 3, 19], // Advanced - Start Game
+      [0, 1, 2],
+      [3, 4, 3],
+      [7, 8, 3],
+      [11, 12, 3],
+      [15, 16, 3],
     ];
   }
 
@@ -101,7 +99,7 @@ class T {
     }
     this.o.querySelector(".content").innerHTML = content;
     this.o.querySelector(".prev").style.display = this.s > 0 ? "block" : "none";
-    this.o.querySelector(".next").textContent = this.t[step[3]];
+    this.o.querySelector(".next").textContent = "Continue";
   }
 
   next() {

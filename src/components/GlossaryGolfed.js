@@ -54,4 +54,8 @@ class Glossary {
   toggle() {
     this.v ? this.hide() : this.show();
   }
+
+  isVisible() {
+    return this.v;
+  }
 }
