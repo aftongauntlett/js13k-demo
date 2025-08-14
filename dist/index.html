@@ -36,8 +36,8 @@
         top: 10px;
         left: 10px;
         color: #96c8ff;
-        font-size: 12px;
-        opacity: 0.8;
+        font-size: 16px;
+        opacity: 0.9;
         font-family: "Courier New", monospace;
       }
     </style>
@@ -123,11 +123,10 @@ class E {
           if (game.canEnter(orb, this.x, this.y)) {
             orb.occupied = 1;
             this.captured = 1;
-
-            // Reset stun counter on successful capture
             orb.stunCount = 0;
-
-            this.a?.p(1, 0.5);
+            if (this.a?.c) {
+              this.a.p(1, 0.5);
+            }
             return;
           } else {
             let repelForce = 8;
@@ -142,7 +141,9 @@ class E {
 
             this.inactive = 0.3;
             this.inactiveTime = 0.3;
-            this.a?.p(3, 0.3);
+            if (this.a?.c) {
+              this.a.p(3, 0.3);
+            }
             game.stun(orb, false);
             return;
           }
@@ -159,7 +160,9 @@ class E {
 
           this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          this.a?.p(3, 0.3);
+          if (this.a?.c) {
+            this.a.p(3, 0.3);
+          }
           game.stun(orb, false);
           return;
         } else if (orb.occupied) {
@@ -180,18 +183,12 @@ class E {
         }
       }
     }
-
-    // Apply physics
     this.x += this.vx;
     this.y += this.vy;
     this.vx *= 0.98;
     this.vy *= 0.98;
-
-    // Boundaries with sound
     let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     let now = Date.now();
-
-    // Canvas edges
     let r = this.r;
     if (this.x < r) {
       this.x = r;
@@ -214,7 +211,6 @@ class E {
       this.sound(speed, now);
     }
 
-    // UI areas
     if (this.x < 220 && this.y < 120) {
       if (this.y > 110) {
         this.y = 120;
@@ -242,8 +238,8 @@ class E {
   }
 
   sound(speed, now) {
-    if (this.a?.p && now - this.lastSound > 200) {
-      this.a.p(0, Math.min(1, speed / 6));
+    if (this.a?.c && this.a?.p && now - this.lastSound > 30) {
+      this.a.p(0, Math.min(0.6, speed / 6));
       this.lastSound = now;
     }
   }
@@ -253,7 +249,6 @@ class E {
 
     ctx.save();
 
-    // Colors: [blue,orange]
     let colors = [
       ["rgba(100,150,255,.8)", "rgb(150,200,255)", "rgb(100,150,255)"],
       ["rgba(255,150,100,.8)", "rgb(255,200,150)", "rgb(255,150,100)"],
@@ -292,7 +287,6 @@ class E {
     ctx.arc(this.x, this.y, this.r, 0, 6.28);
     ctx.fill();
 
-    // Orbital type indicator
     if (!this.inactive) {
       ctx.fillStyle = c[1];
       ctx.font = "10px monospace";
@@ -309,45 +303,14 @@ class T {
   constructor(g) {
     this.g = g;
     this.v = 0;
-    this.s = 0;
     this.o = null;
     this.h = localStorage.getItem("t") === "1";
-    this.t = [
-      "Atomic Assembly!",
-      "Learn Real Physics!",
-      "Place electrons in orbitals",
-      "Orbital Types",
-      "Blue=s, Orange=p phases",
-      "Colors show wave signs",
-      "Max 2 electrons per orbital",
-      "How to Play",
-      "Mouse attracts/repels electrons",
-      "Match colors to orbitals",
-      "Complete before timeout",
-      "Pro Tips",
-      "Pauli: max 2 per orbital",
-      "Hund's: fill singly first",
-      "Learn through trial",
-      "Advanced",
-      "Complete all for Infinite",
-      "Storms create interference",
-      "Navigate purple fields",
-    ];
-    this.d = [
-      [0, 1, 2],
-      [3, 4, 3],
-      [7, 8, 3],
-      [11, 12, 3],
-      [15, 16, 3],
-    ];
   }
 
   show() {
     if (this.v) return;
     this.v = 1;
-    this.s = 0;
     this.c();
-    this.u();
   }
 
   hide() {
@@ -366,65 +329,43 @@ class T {
     this.o.style.cssText =
       "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
 
-    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:500px">
-      <div style="display:flex;justify-content:space-between;padding:15px;border-bottom:1px solid #69f;background:#222">
-        <span class="step-counter">${this.s + 1}/5</span>
-        <div style="display:flex;gap:10px">
-          <button class="glossary-btn" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">📚</button>
-          <button class="close-btn" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">X</button>
+    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:600px;max-height:80vh;overflow:auto">
+      <div style="padding:15px;border-bottom:1px solid #69f;background:#222;display:flex;justify-content:space-between;align-items:center">
+        <h2 style="margin:0;color:#ff6">Atomic Assembly Guide</h2>
+        <button style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px;cursor:pointer">✕</button>
+      </div>
+      <div style="padding:20px;line-height:1.4">
+        <h3 style="color:#fa0;margin:0 0 10px">How to Play</h3>
+        <p>• Place electrons in orbitals by moving your cursor<br>
+        • Blue = s orbitals, Orange = p orbitals<br>
+        • Max 2 electrons per orbital<br>
+        • Complete all orbitals before time runs out</p>
+        
+        <h3 style="color:#fa0;margin:20px 0 10px">Rules</h3>
+        <p>• Fill s orbitals before p orbitals<br>
+        • Follow Hund's rule: fill singly first<br>
+        • Complete all 6 elements to unlock infinite mode</p>
+        
+        <h3 style="color:#fa0;margin:20px 0 10px">Controls</h3>
+        <p>• Mouse: attract/repel electrons<br>
+        • M: mute/unmute audio<br>
+        • ESC: this help menu</p>
+        
+        <h3 style="color:#fa0;margin:20px 0 10px">Elements</h3>
+        <div style="font-size:10px">
+        <p><b>Hydrogen (H)</b> - Simplest atom, 1 proton, 1 electron<br>
+        <b>Helium (He)</b> - Noble gas with filled electron shell<br>
+        <b>Lithium (Li)</b> - Alkali metal, reactive outer electron<br>
+        <b>Carbon (C)</b> - Forms 4 bonds, basis of organic chemistry<br>
+        <b>Nitrogen (N)</b> - Essential for proteins and DNA<br>
+        <b>Oxygen (O)</b> - Reactive gas, forms water, supports combustion</p>
         </div>
-      </div>
-      <div style="padding:20px">
-        <h2 style="color:#ff6;margin:0 0 15px;font-size:18px" class="title"></h2>
-        <div class="content" style="line-height:1.5"></div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;padding:15px;border-top:1px solid #69f;background:#222">
-        <button class="prev" style="background:#333;border:1px solid #69f;color:#fa0;padding:8px 16px;margin-right:auto;display:none">Previous</button>
-        <button class="next" style="background:#333;border:1px solid #69f;color:#69f;padding:8px 16px">Next</button>
       </div>
     </div>`;
 
-    let c = this.o.querySelector(".close-btn"),
-      p = this.o.querySelector(".prev"),
-      n = this.o.querySelector(".next"),
-      g = this.o.querySelector(".glossary-btn");
-    c.onclick = () => this.hide();
-    p.onclick = () => this.prev();
-    n.onclick = () => this.next();
-    g.onclick = () => this.g?.glossary?.toggle?.();
+    this.o.querySelector("button").onclick = () => this.hide();
+
     document.body.appendChild(this.o);
-  }
-
-  u() {
-    if (!this.o) return;
-    let step = this.d[this.s];
-    this.o.querySelector(".step-counter").textContent = `${this.s + 1}/5`;
-    this.o.querySelector(".title").textContent = this.t[step[0]];
-    let content = "";
-    for (let i = 0; i < step[2]; i++) {
-      content += this.t[step[1] + i] + "<br>";
-    }
-    this.o.querySelector(".content").innerHTML = content;
-    this.o.querySelector(".prev").style.display = this.s > 0 ? "block" : "none";
-    this.o.querySelector(".next").textContent = "Continue";
-  }
-
-  next() {
-    if (!this.v || !this.o) return;
-    if (this.s < 4) {
-      this.s++;
-      this.u();
-    } else {
-      this.hide();
-      setTimeout(() => this.g?.start?.(), 50);
-    }
-  }
-  prev() {
-    if (!this.v || !this.o) return;
-    if (this.s > 0) {
-      this.s--;
-      this.u();
-    }
   }
 
   shouldShow() {
@@ -437,84 +378,21 @@ class T {
 }
 
 
-class Glossary {
-  constructor() {
-    this.v = 0;
-    this.o = null;
-    this.t = [
-      ["s-orbital", "Spherical, lower energy", "Blue orbitals"],
-      ["p-orbital", "Dumbbell-shaped", "Orange orbitals"],
-      ["Wave phases", "Blue/orange = +/- regions", "Like real orbital math"],
-      ["Pauli", "Max 2 electrons/orbital", "Two electrons max per ring"],
-      ["Hund's Rule", "Fill singly first", "One per orbital first"],
-      ["Config", "1s² 2s² 2p⁶", "Real chemistry order"],
-      ["Aufbau", "Lowest energy first", "Blue before orange"],
-    ];
-  }
-
-  show() {
-    if (this.v) return;
-    this.v = 1;
-    this.c();
-  }
-
-  hide() {
-    this.v = 0;
-    if (this.o) this.o.remove(), (this.o = null);
-  }
-
-  c() {
-    if (this.o) this.o.remove();
-    this.o = document.createElement("div");
-    this.o.style.cssText =
-      "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
-
-    let h = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:400px;max-height:70vh;overflow:auto">
-      <div style="padding:15px;border-bottom:1px solid #69f;background:#222;display:flex;justify-content:space-between">
-        <span style="color:#ff6">📚 Terms</span>
-        <button class="x" style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px">✕</button>
-      </div><div style="padding:15px">`;
-
-    this.t.forEach(
-      (t) =>
-        (h += `<div style="margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px">
-      <b style="color:#ff6">${t[0]}</b><br>
-      <span style="color:#ccc">${t[1]}</span><br>
-      <span style="color:#69f">${t[2]}</span></div>`)
-    );
-
-    h += `</div></div>`;
-    this.o.innerHTML = h;
-    this.o.querySelector(".x").onclick = () => this.hide();
-    this.o.onclick = (e) => e.target === this.o && this.hide();
-    document.body.appendChild(this.o);
-  }
-
-  toggle() {
-    this.v ? this.hide() : this.show();
-  }
-
-  isVisible() {
-    return this.v;
-  }
-}
-
-
 class O {
-  constructor(c, a, g) {
-    this.c = c;
-    this.l = 0;
-    this.s = 0;
-    this.t = 0;
-    this.T = 45;
-    this.a = a;
-    this.g = g;
-    this.w = 0;
-    this.k = null;
-    this.tip = 0;
-    this.ts = 0;
-    this.cycle = 0;
-    this.storms = [];
+  constructor(ctx, audio, gameRef) {
+    this.BLUE = "rgba(100,150,255,";
+    this.ORANGE = "rgba(255,150,100,";
+    this.DARK_BG = "rgba(20,30,50,.95)";
+    this.OVERLAY = "rgba(0,0,0,.9)";
+
+    this.PI2 = 6.28;
+    this.RND = () => Math.random();
+
+    this.e = [];
+    this.ctx = ctx;
+    this.audio = audio;
+    this.gameRef = gameRef;
+
     this.L = [
       ["Hydrogen", 1, 1.008, "H", [80], [[480, 300, 0, 80]]],
       [
@@ -591,15 +469,46 @@ class O {
     ];
 
     this.F = [
-      "Simplest atom - 1 proton\n1 electron",
-      "Noble gas - filled\nelectron shell",
-      "Alkali metal - reactive\nsingle outer electron",
-      "Forms 4 bonds - basis of\norganic chemistry",
-      "Essential for proteins\nand DNA",
-      "Reactive gas - forms water\nsupports combustion",
+      "1 proton\n1 electron",
+      "Noble gas\nfilled shell",
+      "Alkali metal\nouter electron",
+      "4 bonds\norganic base",
+      "Proteins\nDNA",
+      "Forms water\nsupports fire",
     ];
 
+    this.l = 0;
+    this.cycle = 0;
+    this.storms = [];
+    this.startTime = Date.now();
+
+    this.bestTimeNotification = 0;
+    this.newBestTime = 0;
+
     this.r();
+  }
+
+  drawModal(ctx, x, y, w, h, borderColor = this.ORANGE + "1)", lineWidth = 3) {
+    ctx.fillStyle = this.OVERLAY;
+    ctx.fillRect(0, 0, 800, 600);
+
+    ctx.fillStyle = this.DARK_BG;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(x, y, w, h);
+    ctx.textAlign = "center";
+  }
+
+  drawStyledText(ctx, text, x, y, font, color, shadowColor, shadowBlur) {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    if (shadowColor) {
+      ctx.shadowColor = shadowColor;
+      ctx.shadowBlur = shadowBlur;
+    }
+    ctx.fillText(text, x, y);
+    if (shadowColor) ctx.shadowBlur = 0;
   }
 
   r() {
@@ -619,44 +528,64 @@ class O {
         shake: 0,
       });
     }
-    this.t = 0;
-    this.w = 0;
 
     if (this.cycle === 0) {
       this.storms = [];
+      this.startTime = Date.now();
     }
   }
 
   u() {
-    if (!(this.g && this.g.easyMode)) {
-      this.t += 1 / 60;
-    }
-    for (let orb of this.o) {
-      if (orb.occupied) orb.eAngle += 0.05;
-      if (orb.stunned > 0) {
-        orb.stunned -= 1 / 60;
-        if (orb.stunned < 0) orb.stunned = 0;
-      }
-      if (orb.shake > 0) orb.shake -= 1 / 60;
-    }
+    let menuOpen = (this.g && this.g.tutorial && this.g.tutorial.v) || this.tip;
 
-    if (this.cycle > 0) {
-      this.uStorms();
-
-      if (Math.random() < 0.02 && this.storms.length < 3) {
-        this.createStorm();
+    if (this.checkComplete() && !this.tip && !this.completionDelay) {
+      if (this.cycle > 0) {
+        this.nextLevel();
+        return;
+      } else {
+        this.completionDelay = 1.0;
+        this.shellGlow = 1;
       }
     }
 
-    if (this.tip && this.t - this.ts > 4) this.tip = 0;
+    if (this.completionDelay > 0) {
+      this.completionDelay -= 1 / 60;
+      this.shellGlow = Math.max(0, this.shellGlow - 1 / 120);
+      if (this.completionDelay <= 0) {
+        this.tip = 1;
+        this.shellGlow = 0;
+      }
+    }
+
+    if (this.bestTimeNotification > 0) {
+      this.bestTimeNotification -= 1 / 60;
+      if (this.bestTimeNotification < 0) {
+        this.bestTimeNotification = 0;
+      }
+    }
+
+    if (!menuOpen) {
+      for (let orb of this.o) {
+        if (orb.occupied) orb.eAngle += 0.05;
+        if (orb.stunned > 0) {
+          orb.stunned -= 1 / 60;
+          if (orb.stunned < 0) orb.stunned = 0;
+        }
+        if (orb.shake > 0) orb.shake -= 1 / 60;
+      }
+
+      if (this.cycle > 0) {
+        this.uStorms();
+
+        if (this.RND() < 0.02 && this.storms.length < 3) {
+          this.createStorm();
+        }
+      }
+    }
   }
 
   checkComplete() {
-    let timeLeft = Math.max(0, this.T - this.t);
-    return (
-      ((this.g && this.g.easyMode) || timeLeft > 0) &&
-      this.o.filter((o) => o.occupied).length === this.o.length
-    );
+    return this.o.filter((o) => o.occupied).length === this.o.length;
   }
 
   canEnter(orb, x, y) {
@@ -723,48 +652,71 @@ class O {
 
     orb.stunned = Math.min(progressiveDuration, maxDuration);
 
-    if (playSound) this.a?.p(4, 0.4);
+    if (playSound && this.a?.c) {
+      this.a.p(4, 0.4);
+    }
   }
 
   hit(orb) {
     orb.hits = (orb.hits || 0) + 1;
+
     if (orb.hits >= 2) {
-      if (this.g && this.g.electrons) {
-        let electronFound = false;
-        for (let e of this.g.electrons) {
+      let gameElectrons = this.gameRef ? this.gameRef.electrons : null;
+
+      if (gameElectrons) {
+        let electronToEject = null;
+
+        for (let e of gameElectrons) {
           if (e.captured && e.type === orb.type) {
-            e.captured = 0;
-
-            let angle = Math.random() * 6.28;
-            let distance = 60 + Math.random() * 20;
-            e.x = orb.x + Math.cos(angle) * distance;
-            e.y = orb.y + Math.sin(angle) * distance;
-
-            let escapeSpeed = 3 + Math.random() * 2;
-            e.vx = Math.cos(angle) * escapeSpeed;
-            e.vy = Math.sin(angle) * escapeSpeed;
-
-            e.inactive = 0.5;
-            e.inactiveTime = 0.5;
-
-            electronFound = true;
+            electronToEject = e;
             break;
           }
         }
-        if (!electronFound) {
+
+        if (electronToEject) {
+          let angle = this.RND() * this.PI2;
+          let distance = 60 + this.RND() * 20;
+
+          let newX = orb.x + Math.cos(angle) * distance;
+          let newY = orb.y + Math.sin(angle) * distance;
+
+          newX = Math.max(50, Math.min(750, newX));
+          newY = Math.max(50, Math.min(550, newY));
+
+          electronToEject.x = newX;
+          electronToEject.y = newY;
+
+          let escapeSpeed = 2 + this.RND() * 1.5;
+          electronToEject.vx = Math.cos(angle) * escapeSpeed;
+          electronToEject.vy = Math.sin(angle) * escapeSpeed;
+
+          electronToEject.inactive = 0.5;
+          electronToEject.inactiveTime = 0.5;
+
+          electronToEject.captured = 0;
+          orb.occupied = 0;
+        } else {
+          if (this.gameRef && this.gameRef.respawn) {
+            this.gameRef.respawn(orb.type);
+          }
+          orb.occupied = 0;
         }
+      } else {
+        orb.occupied = 0;
       }
 
-      orb.occupied = 0;
       orb.hits = 0;
       orb.shake = 0;
-
       orb.stunned = 1.5;
 
-      this.a?.p(2, 0.5);
+      if (this.a?.c) {
+        this.a.p(2, 0.5);
+      }
     } else {
       orb.shake = 0.3;
-      this.a?.p(4, 0.4);
+      if (this.a?.c) {
+        this.a.p(4, 0.4);
+      }
     }
   }
 
@@ -777,7 +729,7 @@ class O {
       life: 5 + Math.random() * 4,
       maxLife: 5 + Math.random() * 4,
       strength: 1.2 + Math.random() * 0.6,
-      pulse: Math.random() * 6.28,
+      pulse: this.RND() * this.PI2,
     });
   }
 
@@ -819,19 +771,33 @@ class O {
 
   nextLevel() {
     if (this.checkComplete()) {
-      this.s += (this.l + 1) * 100;
-      this.tip = 1;
-      this.ts = this.t;
+      this.tip = 0;
+      this.completionDelay = 0;
+      this.shellGlow = 0;
       this.l++;
 
       if (this.l >= this.L.length) {
+        let runTime = (Date.now() - this.startTime) / 1000;
+
+        let fastestTime = localStorage.getItem("fastestTime");
+        if (!fastestTime || runTime < parseFloat(fastestTime)) {
+          localStorage.setItem("fastestTime", runTime.toString());
+
+          this.bestTimeNotification = 4.0;
+          this.newBestTime = runTime;
+        }
+
         this.cycle++;
         this.l = 0;
-        this.T = Math.max(15, 45 - this.cycle * 5);
         this.storms = [];
+        this.startTime = Date.now();
       }
 
       this.r();
+      if (this.cycle > 0 && this.gameRef && this.gameRef.spawn) {
+        this.gameRef.spawn();
+      }
+
       return 1;
     }
     return 0;
@@ -839,8 +805,8 @@ class O {
 
   d(ctx) {
     let colors = [
-      ["rgba(100,150,255,", "rgb(100,150,255)"],
-      ["rgba(255,150,100,", "rgb(255,150,100)"],
+      [this.BLUE, "rgb(100,150,255)"],
+      [this.ORANGE, "rgb(255,150,100)"],
     ];
     let lvl = this.L[this.l];
     let f = this.o.filter((o) => o.occupied).length;
@@ -850,6 +816,19 @@ class O {
       shells.add(orb.shellR);
     }
     ctx.save();
+
+    // Add completion glow effect
+    if (this.shellGlow > 0) {
+      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.6})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      [...shells].map((r) => {
+        ctx.beginPath();
+        ctx.arc(400, 300, r, 0, 6.28);
+        ctx.stroke();
+      });
+    }
+
     ctx.strokeStyle = "rgba(100,150,200,.3)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
@@ -1016,179 +995,162 @@ class O {
       ctx.restore();
     }
 
-    ctx.fillStyle = "#EEEEEE";
-    ctx.font = "32px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(lvl[3], 790, 45);
+    ctx.save();
 
-    ctx.font = "10px Arial";
-    ctx.fillText("Z = " + lvl[1], 790, 60);
-    ctx.fillText("A = " + lvl[2], 790, 73);
-    ctx.fillText("e⁻ = " + f + "/" + total, 790, 86);
+    let boxX = 700,
+      boxY = 20,
+      boxW = 80,
+      boxH = 80;
 
-    // Element name with glow effect
-    ctx.fillStyle = "white";
-    ctx.font = "20px monospace";
+    ctx.fillStyle = "rgba(20,30,50,.9)";
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = "rgba(100,200,255,.8)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    ctx.fillStyle = "rgba(100,200,255,.8)";
+    ctx.font = "11px monospace";
     ctx.textAlign = "left";
-    ctx.shadowColor = "rgba(255,255,255,0.3)";
-    ctx.shadowBlur = 8;
-    ctx.fillText(lvl[0], 20, 30);
+    ctx.fillText(lvl[1], boxX + 5, boxY + 14);
+
+    ctx.textAlign = "center";
+    ctx.font = "26px monospace";
+    ctx.fillStyle = "white";
+    ctx.shadowColor = "rgba(100,200,255,.8)";
+    ctx.shadowBlur = 10;
+    ctx.fillText(lvl[3], boxX + boxW / 2, boxY + 40);
     ctx.shadowBlur = 0;
 
-    // Score
-    ctx.font = "16px monospace";
-    ctx.fillText(`SCORE: ${this.s}`, 20, 55);
+    ctx.font = "9px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fillText(lvl[0], boxX + boxW / 2, boxY + 55);
+
+    ctx.font = "10px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fillText(lvl[2].toFixed(3), boxX + boxW / 2, boxY + 70);
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.font = "18px monospace";
+    ctx.fillStyle = "white";
+    ctx.shadowColor = "rgba(100,200,255,.6)";
+    ctx.shadowBlur = 8;
+    ctx.fillText(lvl[0], 20, 25);
+    ctx.shadowBlur = 0;
+
+    ctx.font = "12px monospace";
+    ctx.fillStyle = "rgba(100,200,255,.8)";
+    ctx.fillText(`Element ${lvl[3]} - Atomic #${lvl[1]}`, 20, 42);
+
+    let runTime = (Date.now() - this.startTime) / 1000;
+
+    ctx.textAlign = "left";
+    ctx.font = "14px monospace";
+
+    ctx.fillStyle = "rgba(220,230,240,.9)";
+    ctx.fillText(`Run Time: ${runTime.toFixed(1)}s`, 20, 62);
+
+    let fastestTime = localStorage.getItem("fastestTime");
+    if (fastestTime) {
+      ctx.fillStyle = "rgba(255,200,100,.9)";
+      ctx.fillText(`Best Time: ${parseFloat(fastestTime).toFixed(1)}s`, 20, 80);
+    }
 
     if (this.cycle > 0) {
-      ctx.fillStyle = "rgb(255,150,100)";
-      ctx.font = "14px monospace";
-      ctx.fillText(`CYCLE: ${this.cycle}`, 20, 80);
-      ctx.fillStyle = "rgb(200,200,200)";
-      ctx.fillText(`Storms: ${this.storms.length}`, 20, 100);
-      ctx.fillStyle = "white";
-      ctx.fillText(
-        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
-          this.o.length
-        }`,
-        20,
-        120
-      );
-    } else {
-      ctx.fillStyle = "white";
-      ctx.font = "14px monospace";
-      ctx.fillText(
-        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
-          this.o.length
-        }`,
-        20,
-        80
-      );
+      ctx.fillStyle = "rgba(255,150,100,.9)";
+      ctx.fillText(`Cycle: ${this.cycle}`, 20, 98);
     }
 
-    let timeLeft = Math.max(0, this.T - this.t);
-    if (this.g && this.g.easyMode) {
-      ctx.fillStyle = "rgb(100,255,100)";
-      ctx.font = "14px monospace";
-      ctx.fillText("Timer: OFF", 20, this.cycle > 0 ? 140 : 100);
-    } else {
-      ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-      ctx.font = "14px monospace";
-      ctx.fillText(
-        `Timer: ${timeLeft.toFixed(1)}s`,
-        20,
-        this.cycle > 0 ? 140 : 100
-      );
-    }
-
-    if (
-      timeLeft <= 10 &&
-      timeLeft > 0 &&
-      !this.w &&
-      this.a &&
-      !(this.g && this.g.easyMode)
-    ) {
-      this.a.p(6, 0.7);
-      this.w = 1;
-    }
-
-    if (this.checkComplete()) {
+    if (this.bestTimeNotification > 0) {
       ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
 
-      let boxW = 400,
-        boxH = 120;
-      let boxX = 200,
-        boxY = 240;
-
-      ctx.fillStyle = "rgba(20,30,50,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(255,255,100)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      ctx.textAlign = "center";
-      ctx.font = "24px monospace";
-      ctx.shadowColor = "rgb(255,255,0)";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "rgb(255,255,100)";
-
-      if (this.l >= this.L.length - 1 && this.cycle === 0) {
-        ctx.fillText("INFINITE MODE UNLOCKED!", 400, boxY + 45);
-      } else {
-        ctx.fillText("LEVEL COMPLETE!", 400, boxY + 45);
+      let fadeTime = 0.5;
+      let alpha = 1;
+      if (this.bestTimeNotification < fadeTime) {
+        alpha = this.bestTimeNotification / fadeTime;
+      } else if (this.bestTimeNotification > 4.0 - fadeTime) {
+        alpha = (4.0 - this.bestTimeNotification) / fadeTime;
       }
 
-      ctx.font = "16px monospace";
-      ctx.shadowColor = "rgb(0,255,255)";
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = "rgb(100,200,255)";
-      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", 400, boxY + 75);
-      ctx.restore();
-    } else if (timeLeft <= 0 && !(this.g && this.g.easyMode)) {
-      ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
+      let notifX = 300,
+        notifY = 15,
+        notifW = 200,
+        notifH = 50;
 
-      let boxW = 400,
-        boxH = 100;
-      let boxX = 200,
-        boxY = 250;
-
-      ctx.fillStyle = "rgba(50,20,20,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(255,100,100)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
+      ctx.fillStyle = `rgba(20,30,50,${alpha * 0.95})`;
+      ctx.fillRect(notifX, notifY, notifW, notifH);
+      ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.8})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(notifX, notifY, notifW, notifH);
+      ctx.font = "12px monospace";
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
       ctx.textAlign = "center";
-      ctx.font = "20px monospace";
-      ctx.shadowColor = "rgb(255,100,100)";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "rgb(255,150,150)";
-      ctx.fillText("TIME'S UP! CLICK TO RETRY", 400, boxY + 60);
+      ctx.fillText("⚡ NEW BEST TIME ⚡", notifX + notifW / 2, notifY + 20);
+      ctx.font = "14px monospace";
+      ctx.fillStyle = `rgba(100,200,255,${alpha})`;
+      ctx.fillText(
+        `${this.newBestTime.toFixed(1)}s`,
+        notifX + notifW / 2,
+        notifY + 37
+      );
       ctx.restore();
     }
 
     if (this.tip) {
       ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
-
-      let boxW = 400,
-        boxH = 170;
-      let boxX = 200,
-        boxY = 215;
-
-      ctx.fillStyle = "rgba(20,30,50,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(100,150,255)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      ctx.textAlign = "center";
-      ctx.fillStyle = "rgb(255,255,100)";
-      ctx.font = "20px monospace";
-      ctx.fillText("ELEMENT BUILT!", 400, boxY + 35);
-
-      let prevIdx = this.l === 0 ? this.L.length - 1 : this.l - 1;
-      ctx.fillStyle = "rgb(100,200,255)";
-      ctx.font = "16px monospace";
-      ctx.fillText(this.L[prevIdx][0], 400, boxY + 60);
-
-      ctx.fillStyle = "rgb(255,200,100)";
-      ctx.font = "14px monospace";
-      const lines = this.F[prevIdx].split("\n");
-      lines.forEach((line, i) => {
-        ctx.fillText(line, 400, boxY + 85 + i * 18);
-      });
-
-      ctx.fillStyle = "rgba(150,150,150,.8)";
-      ctx.font = "12px monospace";
-      ctx.fillText(
-        `(Auto-closes in ${Math.ceil(4 - (this.t - this.ts))}s)`,
+      let boxW = 450,
+        boxH = 280,
+        boxX = 175,
+        boxY = 160;
+      this.drawModal(ctx, boxX, boxY, boxW, boxH);
+      let currentElement = this.L[this.l];
+      this.drawStyledText(
+        ctx,
+        `${currentElement[0]} Complete!`,
         400,
-        boxY + 140
+        boxY + 40,
+        "22px monospace",
+        "rgb(255,200,100)",
+        "rgb(255,150,100)",
+        10
+      );
+      ctx.font = "16px monospace";
+      ctx.fillStyle = "rgb(100,200,255)";
+      const lines = this.F[this.l].split("\n");
+      lines.forEach((line, i) => {
+        ctx.fillText(line, 400, boxY + 75 + i * 20);
+      });
+      this.drawStyledText(
+        ctx,
+        `Symbol: ${currentElement[3]} • Atomic #: ${currentElement[1]} • Mass: ${currentElement[2]}`,
+        400,
+        boxY + 140,
+        "14px monospace",
+        "rgba(200,200,200,0.9)"
+      );
+      let statusText =
+        this.l >= this.L.length - 1 && this.cycle === 0
+          ? "🎉 Infinite Mode Unlocked! 🎉"
+          : "Level Complete!";
+      this.drawStyledText(
+        ctx,
+        statusText,
+        400,
+        boxY + 180,
+        "18px monospace",
+        "rgb(255,200,100)"
+      );
+
+      // Action prompt
+      this.drawStyledText(
+        ctx,
+        "Click to continue to next level",
+        400,
+        boxY + 220,
+        "14px monospace",
+        "rgba(100,200,255,0.8)"
       );
 
       ctx.restore();
@@ -1257,10 +1219,13 @@ class A {
 
   p(i, e, echo) {
     if (!this.c || this.muted) return;
+    if (this.c.state === "suspended") {
+      this.c.resume();
+    }
 
     const now = Date.now();
     this.lastPlay = this.lastPlay || {};
-    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return;
+    if (i !== 1 && this.lastPlay[i] && now - this.lastPlay[i] < 25) return;
     this.lastPlay[i] = now;
 
     const s = this.c.createBufferSource();
@@ -1404,29 +1369,36 @@ class G {
   constructor() {
     this.c = document.getElementById("gameCanvas");
     this.ctx = this.c.getContext("2d");
-    this.easyMode = localStorage.getItem("easyMode") === "1";
-    this.pausedAt = 0;
 
-    if (localStorage.getItem("easyMode") === null) {
-      localStorage.setItem("easyMode", "0");
-      this.easyMode = false;
-    }
-
-    if (this.easyMode) {
-      this.pausedAt = 0;
-    }
+    this.audio = new A();
 
     this.input = { mouse: { x: 400, y: 300 } };
-    this.c.addEventListener("mousemove", (e) => {
+    this.c.addEventListener("mousemove", async (e) => {
       let rect = this.c.getBoundingClientRect();
       this.input.mouse.x = e.clientX - rect.left;
       this.input.mouse.y = e.clientY - rect.top;
+
+      // Try to initialize audio on any mouse movement
+      if (!this.audio.c) {
+        try {
+          await this.audio.i();
+          this.audio.m();
+        } catch (err) {
+          // Will retry on click
+        }
+      }
     });
 
-    this.audio = new A();
+    // Initialize audio on first mouse interaction
+    this.c.addEventListener("mousedown", async () => {
+      if (!this.audio.c) {
+        await this.audio.i();
+        this.audio.m(); // Start background music
+      }
+    });
+
     this.o = new O(this.c, this.audio, this);
     this.tutorial = new T(this);
-    this.glossary = new Glossary();
 
     this.electrons = [];
     this.particles = [];
@@ -1435,24 +1407,25 @@ class G {
     this.spawnParticles();
 
     this.c.addEventListener("click", async (e) => {
-      if (!this.audio.c) {
-        await this.audio.i();
-        this.audio.m();
-      }
-
       if (this.o.tip) {
         this.o.tip = 0;
         this.audio.p(5, 0.6);
+
+        // If level was completed when tip was shown, advance to next level
+        if (this.o.checkComplete()) {
+          this.o.nextLevel();
+          this.spawn();
+        }
         return;
       }
 
-      let timeLeft = Math.max(0, this.o.T - this.o.t);
-      if (!this.easyMode && timeLeft <= 0) {
-        this.audio.p(6, 0.7);
-        this.o.r();
-        this.spawn();
-      } else if (this.o.checkComplete()) {
-        this.audio.p(7, 0.8);
+      // Don't allow level advancement during completion delay
+      if (this.o.completionDelay > 0) {
+        return;
+      }
+
+      // Check if level is complete and advance (only if tip wasn't showing and no delay)
+      if (this.o.checkComplete()) {
         this.o.nextLevel();
         this.spawn();
       }
@@ -1462,21 +1435,11 @@ class G {
       if (e.key === "Escape") {
         if (this.o.tip) {
           this.o.tip = 0;
-        } else if (this.glossary.isVisible()) {
-          this.glossary.hide();
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
-      } else if (e.key === "t" || e.key === "T") {
-        if (!this.easyMode) {
-          this.pausedAt = this.o.t;
-        } else {
-          this.o.t = this.pausedAt;
-        }
-        this.easyMode = !this.easyMode;
-        localStorage.setItem("easyMode", this.easyMode ? "1" : "0");
       }
     });
 
@@ -1561,7 +1524,7 @@ class G {
     }
 
     for (let e of this.electrons) {
-      e.u(this.input.mouse, this.o.o, this.o);
+      e.u(this.input.mouse, this.o.o, this);
 
       this.o.applyStormForces(e);
     }
@@ -1629,6 +1592,7 @@ class G {
 
     this.o.d(this.ctx);
 
+    // Always draw electrons unless tip is showing
     if (!this.o.tip) {
       for (let e of this.electrons) {
         e.d(this.ctx);
@@ -1638,10 +1602,29 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue=s Orange=p phases | M:Mute T:Timer ESC:Tutorial",
+      "Blue = s orbitals, Orange = p orbitals | M:Mute ESC:Tutorial",
       20,
       580
     );
+
+    // Bottom right - Level info with infinite level support
+    let currentElement = this.o.L[this.o.l];
+    this.ctx.textAlign = "right";
+    this.ctx.fillStyle = "rgba(100, 200, 255, 0.8)";
+    this.ctx.font = "14px monospace";
+
+    // Calculate total levels completed across all cycles
+    let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
+
+    if (this.o.cycle > 0) {
+      // In infinite mode - show total levels completed
+      this.ctx.fillText(`Level: ${totalLevelsCompleted}`, 780, 580);
+    } else {
+      // First playthrough - show traditional level/total format
+      this.ctx.fillText(`Level: ${this.o.l + 1}/${this.o.L.length}`, 780, 580);
+    }
+
+    this.ctx.textAlign = "left";
   }
 
   loop() {
@@ -1651,6 +1634,20 @@ class G {
   }
 
   start() {}
+
+  hit(orb) {
+    // Set game reference for orbital system to access electrons
+    this.o.gameRef = this;
+    this.o.hit(orb);
+  }
+
+  stun(orb, playSound) {
+    this.o.stun(orb, playSound);
+  }
+
+  canEnter(orb, x, y) {
+    return this.o.canEnter(orb, x, y);
+  }
 }
 
 

@@ -70,11 +70,10 @@ class E {
           if (game.canEnter(orb, this.x, this.y)) {
             orb.occupied = 1;
             this.captured = 1;
-
-            // Reset stun counter on successful capture
             orb.stunCount = 0;
-
-            this.a?.p(1, 0.5);
+            if (this.a?.c) {
+              this.a.p(1, 0.5);
+            }
             return;
           } else {
             let repelForce = 8;
@@ -89,7 +88,9 @@ class E {
 
             this.inactive = 0.3;
             this.inactiveTime = 0.3;
-            this.a?.p(3, 0.3);
+            if (this.a?.c) {
+              this.a.p(3, 0.3);
+            }
             game.stun(orb, false);
             return;
           }
@@ -106,7 +107,9 @@ class E {
 
           this.inactive = 0.3;
           this.inactiveTime = 0.3;
-          this.a?.p(3, 0.3);
+          if (this.a?.c) {
+            this.a.p(3, 0.3);
+          }
           game.stun(orb, false);
           return;
         } else if (orb.occupied) {
@@ -127,18 +130,12 @@ class E {
         }
       }
     }
-
-    // Apply physics
     this.x += this.vx;
     this.y += this.vy;
     this.vx *= 0.98;
     this.vy *= 0.98;
-
-    // Boundaries with sound
     let speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     let now = Date.now();
-
-    // Canvas edges
     let r = this.r;
     if (this.x < r) {
       this.x = r;
@@ -161,7 +158,6 @@ class E {
       this.sound(speed, now);
     }
 
-    // UI areas
     if (this.x < 220 && this.y < 120) {
       if (this.y > 110) {
         this.y = 120;
@@ -189,8 +185,8 @@ class E {
   }
 
   sound(speed, now) {
-    if (this.a?.p && now - this.lastSound > 200) {
-      this.a.p(0, Math.min(1, speed / 6));
+    if (this.a?.c && this.a?.p && now - this.lastSound > 30) {
+      this.a.p(0, Math.min(0.6, speed / 6));
       this.lastSound = now;
     }
   }
@@ -200,7 +196,6 @@ class E {
 
     ctx.save();
 
-    // Colors: [blue,orange]
     let colors = [
       ["rgba(100,150,255,.8)", "rgb(150,200,255)", "rgb(100,150,255)"],
       ["rgba(255,150,100,.8)", "rgb(255,200,150)", "rgb(255,150,100)"],
@@ -239,7 +234,6 @@ class E {
     ctx.arc(this.x, this.y, this.r, 0, 6.28);
     ctx.fill();
 
-    // Orbital type indicator
     if (!this.inactive) {
       ctx.fillStyle = c[1];
       ctx.font = "10px monospace";

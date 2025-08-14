@@ -58,10 +58,13 @@ class A {
 
   p(i, e, echo) {
     if (!this.c || this.muted) return;
+    if (this.c.state === "suspended") {
+      this.c.resume();
+    }
 
     const now = Date.now();
     this.lastPlay = this.lastPlay || {};
-    if (this.lastPlay[i] && now - this.lastPlay[i] < 100) return;
+    if (i !== 1 && this.lastPlay[i] && now - this.lastPlay[i] < 25) return;
     this.lastPlay[i] = now;
 
     const s = this.c.createBufferSource();

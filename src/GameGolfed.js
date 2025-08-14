@@ -2,29 +2,36 @@ class G {
   constructor() {
     this.c = document.getElementById("gameCanvas");
     this.ctx = this.c.getContext("2d");
-    this.easyMode = localStorage.getItem("easyMode") === "1";
-    this.pausedAt = 0;
 
-    if (localStorage.getItem("easyMode") === null) {
-      localStorage.setItem("easyMode", "0");
-      this.easyMode = false;
-    }
-
-    if (this.easyMode) {
-      this.pausedAt = 0;
-    }
+    this.audio = new A();
 
     this.input = { mouse: { x: 400, y: 300 } };
-    this.c.addEventListener("mousemove", (e) => {
+    this.c.addEventListener("mousemove", async (e) => {
       let rect = this.c.getBoundingClientRect();
       this.input.mouse.x = e.clientX - rect.left;
       this.input.mouse.y = e.clientY - rect.top;
+
+      // Try to initialize audio on any mouse movement
+      if (!this.audio.c) {
+        try {
+          await this.audio.i();
+          this.audio.m();
+        } catch (err) {
+          // Will retry on click
+        }
+      }
     });
 
-    this.audio = new A();
+    // Initialize audio on first mouse interaction
+    this.c.addEventListener("mousedown", async () => {
+      if (!this.audio.c) {
+        await this.audio.i();
+        this.audio.m(); // Start background music
+      }
+    });
+
     this.o = new O(this.c, this.audio, this);
     this.tutorial = new T(this);
-    this.glossary = new Glossary();
 
     this.electrons = [];
     this.particles = [];
@@ -33,24 +40,25 @@ class G {
     this.spawnParticles();
 
     this.c.addEventListener("click", async (e) => {
-      if (!this.audio.c) {
-        await this.audio.i();
-        this.audio.m();
-      }
-
       if (this.o.tip) {
         this.o.tip = 0;
         this.audio.p(5, 0.6);
+
+        // If level was completed when tip was shown, advance to next level
+        if (this.o.checkComplete()) {
+          this.o.nextLevel();
+          this.spawn();
+        }
         return;
       }
 
-      let timeLeft = Math.max(0, this.o.T - this.o.t);
-      if (!this.easyMode && timeLeft <= 0) {
-        this.audio.p(6, 0.7);
-        this.o.r();
-        this.spawn();
-      } else if (this.o.checkComplete()) {
-        this.audio.p(7, 0.8);
+      // Don't allow level advancement during completion delay
+      if (this.o.completionDelay > 0) {
+        return;
+      }
+
+      // Check if level is complete and advance (only if tip wasn't showing and no delay)
+      if (this.o.checkComplete()) {
         this.o.nextLevel();
         this.spawn();
       }
@@ -60,21 +68,11 @@ class G {
       if (e.key === "Escape") {
         if (this.o.tip) {
           this.o.tip = 0;
-        } else if (this.glossary.isVisible()) {
-          this.glossary.hide();
         } else {
           this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
         }
       } else if (e.key === "m" || e.key === "M") {
         this.audio.t();
-      } else if (e.key === "t" || e.key === "T") {
-        if (!this.easyMode) {
-          this.pausedAt = this.o.t;
-        } else {
-          this.o.t = this.pausedAt;
-        }
-        this.easyMode = !this.easyMode;
-        localStorage.setItem("easyMode", this.easyMode ? "1" : "0");
       }
     });
 
@@ -159,7 +157,7 @@ class G {
     }
 
     for (let e of this.electrons) {
-      e.u(this.input.mouse, this.o.o, this.o);
+      e.u(this.input.mouse, this.o.o, this);
 
       this.o.applyStormForces(e);
     }
@@ -227,6 +225,7 @@ class G {
 
     this.o.d(this.ctx);
 
+    // Always draw electrons unless tip is showing
     if (!this.o.tip) {
       for (let e of this.electrons) {
         e.d(this.ctx);
@@ -236,10 +235,29 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue=s Orange=p phases | M:Mute T:Timer ESC:Tutorial",
+      "Blue = s orbitals, Orange = p orbitals | M:Mute ESC:Tutorial",
       20,
       580
     );
+
+    // Bottom right - Level info with infinite level support
+    let currentElement = this.o.L[this.o.l];
+    this.ctx.textAlign = "right";
+    this.ctx.fillStyle = "rgba(100, 200, 255, 0.8)";
+    this.ctx.font = "14px monospace";
+
+    // Calculate total levels completed across all cycles
+    let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
+
+    if (this.o.cycle > 0) {
+      // In infinite mode - show total levels completed
+      this.ctx.fillText(`Level: ${totalLevelsCompleted}`, 780, 580);
+    } else {
+      // First playthrough - show traditional level/total format
+      this.ctx.fillText(`Level: ${this.o.l + 1}/${this.o.L.length}`, 780, 580);
+    }
+
+    this.ctx.textAlign = "left";
   }
 
   loop() {
@@ -249,4 +267,18 @@ class G {
   }
 
   start() {}
+
+  hit(orb) {
+    // Set game reference for orbital system to access electrons
+    this.o.gameRef = this;
+    this.o.hit(orb);
+  }
+
+  stun(orb, playSound) {
+    this.o.stun(orb, playSound);
+  }
+
+  canEnter(orb, x, y) {
+    return this.o.canEnter(orb, x, y);
+  }
 }

@@ -1,18 +1,18 @@
 class O {
-  constructor(c, a, g) {
-    this.c = c;
-    this.l = 0;
-    this.s = 0;
-    this.t = 0;
-    this.T = 45;
-    this.a = a;
-    this.g = g;
-    this.w = 0;
-    this.k = null;
-    this.tip = 0;
-    this.ts = 0;
-    this.cycle = 0;
-    this.storms = [];
+  constructor(ctx, audio, gameRef) {
+    this.BLUE = "rgba(100,150,255,";
+    this.ORANGE = "rgba(255,150,100,";
+    this.DARK_BG = "rgba(20,30,50,.95)";
+    this.OVERLAY = "rgba(0,0,0,.9)";
+
+    this.PI2 = 6.28;
+    this.RND = () => Math.random();
+
+    this.e = [];
+    this.ctx = ctx;
+    this.audio = audio;
+    this.gameRef = gameRef;
+
     this.L = [
       ["Hydrogen", 1, 1.008, "H", [80], [[480, 300, 0, 80]]],
       [
@@ -89,15 +89,46 @@ class O {
     ];
 
     this.F = [
-      "Simplest atom - 1 proton\n1 electron",
-      "Noble gas - filled\nelectron shell",
-      "Alkali metal - reactive\nsingle outer electron",
-      "Forms 4 bonds - basis of\norganic chemistry",
-      "Essential for proteins\nand DNA",
-      "Reactive gas - forms water\nsupports combustion",
+      "1 proton\n1 electron",
+      "Noble gas\nfilled shell",
+      "Alkali metal\nouter electron",
+      "4 bonds\norganic base",
+      "Proteins\nDNA",
+      "Forms water\nsupports fire",
     ];
 
+    this.l = 0;
+    this.cycle = 0;
+    this.storms = [];
+    this.startTime = Date.now();
+
+    this.bestTimeNotification = 0;
+    this.newBestTime = 0;
+
     this.r();
+  }
+
+  drawModal(ctx, x, y, w, h, borderColor = this.ORANGE + "1)", lineWidth = 3) {
+    ctx.fillStyle = this.OVERLAY;
+    ctx.fillRect(0, 0, 800, 600);
+
+    ctx.fillStyle = this.DARK_BG;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(x, y, w, h);
+    ctx.textAlign = "center";
+  }
+
+  drawStyledText(ctx, text, x, y, font, color, shadowColor, shadowBlur) {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    if (shadowColor) {
+      ctx.shadowColor = shadowColor;
+      ctx.shadowBlur = shadowBlur;
+    }
+    ctx.fillText(text, x, y);
+    if (shadowColor) ctx.shadowBlur = 0;
   }
 
   r() {
@@ -117,44 +148,64 @@ class O {
         shake: 0,
       });
     }
-    this.t = 0;
-    this.w = 0;
 
     if (this.cycle === 0) {
       this.storms = [];
+      this.startTime = Date.now();
     }
   }
 
   u() {
-    if (!(this.g && this.g.easyMode)) {
-      this.t += 1 / 60;
-    }
-    for (let orb of this.o) {
-      if (orb.occupied) orb.eAngle += 0.05;
-      if (orb.stunned > 0) {
-        orb.stunned -= 1 / 60;
-        if (orb.stunned < 0) orb.stunned = 0;
-      }
-      if (orb.shake > 0) orb.shake -= 1 / 60;
-    }
+    let menuOpen = (this.g && this.g.tutorial && this.g.tutorial.v) || this.tip;
 
-    if (this.cycle > 0) {
-      this.uStorms();
-
-      if (Math.random() < 0.02 && this.storms.length < 3) {
-        this.createStorm();
+    if (this.checkComplete() && !this.tip && !this.completionDelay) {
+      if (this.cycle > 0) {
+        this.nextLevel();
+        return;
+      } else {
+        this.completionDelay = 1.0;
+        this.shellGlow = 1;
       }
     }
 
-    if (this.tip && this.t - this.ts > 4) this.tip = 0;
+    if (this.completionDelay > 0) {
+      this.completionDelay -= 1 / 60;
+      this.shellGlow = Math.max(0, this.shellGlow - 1 / 120);
+      if (this.completionDelay <= 0) {
+        this.tip = 1;
+        this.shellGlow = 0;
+      }
+    }
+
+    if (this.bestTimeNotification > 0) {
+      this.bestTimeNotification -= 1 / 60;
+      if (this.bestTimeNotification < 0) {
+        this.bestTimeNotification = 0;
+      }
+    }
+
+    if (!menuOpen) {
+      for (let orb of this.o) {
+        if (orb.occupied) orb.eAngle += 0.05;
+        if (orb.stunned > 0) {
+          orb.stunned -= 1 / 60;
+          if (orb.stunned < 0) orb.stunned = 0;
+        }
+        if (orb.shake > 0) orb.shake -= 1 / 60;
+      }
+
+      if (this.cycle > 0) {
+        this.uStorms();
+
+        if (this.RND() < 0.02 && this.storms.length < 3) {
+          this.createStorm();
+        }
+      }
+    }
   }
 
   checkComplete() {
-    let timeLeft = Math.max(0, this.T - this.t);
-    return (
-      ((this.g && this.g.easyMode) || timeLeft > 0) &&
-      this.o.filter((o) => o.occupied).length === this.o.length
-    );
+    return this.o.filter((o) => o.occupied).length === this.o.length;
   }
 
   canEnter(orb, x, y) {
@@ -221,48 +272,71 @@ class O {
 
     orb.stunned = Math.min(progressiveDuration, maxDuration);
 
-    if (playSound) this.a?.p(4, 0.4);
+    if (playSound && this.a?.c) {
+      this.a.p(4, 0.4);
+    }
   }
 
   hit(orb) {
     orb.hits = (orb.hits || 0) + 1;
+
     if (orb.hits >= 2) {
-      if (this.g && this.g.electrons) {
-        let electronFound = false;
-        for (let e of this.g.electrons) {
+      let gameElectrons = this.gameRef ? this.gameRef.electrons : null;
+
+      if (gameElectrons) {
+        let electronToEject = null;
+
+        for (let e of gameElectrons) {
           if (e.captured && e.type === orb.type) {
-            e.captured = 0;
-
-            let angle = Math.random() * 6.28;
-            let distance = 60 + Math.random() * 20;
-            e.x = orb.x + Math.cos(angle) * distance;
-            e.y = orb.y + Math.sin(angle) * distance;
-
-            let escapeSpeed = 3 + Math.random() * 2;
-            e.vx = Math.cos(angle) * escapeSpeed;
-            e.vy = Math.sin(angle) * escapeSpeed;
-
-            e.inactive = 0.5;
-            e.inactiveTime = 0.5;
-
-            electronFound = true;
+            electronToEject = e;
             break;
           }
         }
-        if (!electronFound) {
+
+        if (electronToEject) {
+          let angle = this.RND() * this.PI2;
+          let distance = 60 + this.RND() * 20;
+
+          let newX = orb.x + Math.cos(angle) * distance;
+          let newY = orb.y + Math.sin(angle) * distance;
+
+          newX = Math.max(50, Math.min(750, newX));
+          newY = Math.max(50, Math.min(550, newY));
+
+          electronToEject.x = newX;
+          electronToEject.y = newY;
+
+          let escapeSpeed = 2 + this.RND() * 1.5;
+          electronToEject.vx = Math.cos(angle) * escapeSpeed;
+          electronToEject.vy = Math.sin(angle) * escapeSpeed;
+
+          electronToEject.inactive = 0.5;
+          electronToEject.inactiveTime = 0.5;
+
+          electronToEject.captured = 0;
+          orb.occupied = 0;
+        } else {
+          if (this.gameRef && this.gameRef.respawn) {
+            this.gameRef.respawn(orb.type);
+          }
+          orb.occupied = 0;
         }
+      } else {
+        orb.occupied = 0;
       }
 
-      orb.occupied = 0;
       orb.hits = 0;
       orb.shake = 0;
-
       orb.stunned = 1.5;
 
-      this.a?.p(2, 0.5);
+      if (this.a?.c) {
+        this.a.p(2, 0.5);
+      }
     } else {
       orb.shake = 0.3;
-      this.a?.p(4, 0.4);
+      if (this.a?.c) {
+        this.a.p(4, 0.4);
+      }
     }
   }
 
@@ -275,7 +349,7 @@ class O {
       life: 5 + Math.random() * 4,
       maxLife: 5 + Math.random() * 4,
       strength: 1.2 + Math.random() * 0.6,
-      pulse: Math.random() * 6.28,
+      pulse: this.RND() * this.PI2,
     });
   }
 
@@ -317,19 +391,33 @@ class O {
 
   nextLevel() {
     if (this.checkComplete()) {
-      this.s += (this.l + 1) * 100;
-      this.tip = 1;
-      this.ts = this.t;
+      this.tip = 0;
+      this.completionDelay = 0;
+      this.shellGlow = 0;
       this.l++;
 
       if (this.l >= this.L.length) {
+        let runTime = (Date.now() - this.startTime) / 1000;
+
+        let fastestTime = localStorage.getItem("fastestTime");
+        if (!fastestTime || runTime < parseFloat(fastestTime)) {
+          localStorage.setItem("fastestTime", runTime.toString());
+
+          this.bestTimeNotification = 4.0;
+          this.newBestTime = runTime;
+        }
+
         this.cycle++;
         this.l = 0;
-        this.T = Math.max(15, 45 - this.cycle * 5);
         this.storms = [];
+        this.startTime = Date.now();
       }
 
       this.r();
+      if (this.cycle > 0 && this.gameRef && this.gameRef.spawn) {
+        this.gameRef.spawn();
+      }
+
       return 1;
     }
     return 0;
@@ -337,8 +425,8 @@ class O {
 
   d(ctx) {
     let colors = [
-      ["rgba(100,150,255,", "rgb(100,150,255)"],
-      ["rgba(255,150,100,", "rgb(255,150,100)"],
+      [this.BLUE, "rgb(100,150,255)"],
+      [this.ORANGE, "rgb(255,150,100)"],
     ];
     let lvl = this.L[this.l];
     let f = this.o.filter((o) => o.occupied).length;
@@ -348,6 +436,19 @@ class O {
       shells.add(orb.shellR);
     }
     ctx.save();
+
+    // Add completion glow effect
+    if (this.shellGlow > 0) {
+      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.6})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      [...shells].map((r) => {
+        ctx.beginPath();
+        ctx.arc(400, 300, r, 0, 6.28);
+        ctx.stroke();
+      });
+    }
+
     ctx.strokeStyle = "rgba(100,150,200,.3)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
@@ -514,179 +615,162 @@ class O {
       ctx.restore();
     }
 
-    ctx.fillStyle = "#EEEEEE";
-    ctx.font = "32px Arial";
-    ctx.textAlign = "right";
-    ctx.fillText(lvl[3], 790, 45);
+    ctx.save();
 
-    ctx.font = "10px Arial";
-    ctx.fillText("Z = " + lvl[1], 790, 60);
-    ctx.fillText("A = " + lvl[2], 790, 73);
-    ctx.fillText("e⁻ = " + f + "/" + total, 790, 86);
+    let boxX = 700,
+      boxY = 20,
+      boxW = 80,
+      boxH = 80;
 
-    // Element name with glow effect
-    ctx.fillStyle = "white";
-    ctx.font = "20px monospace";
+    ctx.fillStyle = "rgba(20,30,50,.9)";
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = "rgba(100,200,255,.8)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    ctx.fillStyle = "rgba(100,200,255,.8)";
+    ctx.font = "11px monospace";
     ctx.textAlign = "left";
-    ctx.shadowColor = "rgba(255,255,255,0.3)";
-    ctx.shadowBlur = 8;
-    ctx.fillText(lvl[0], 20, 30);
+    ctx.fillText(lvl[1], boxX + 5, boxY + 14);
+
+    ctx.textAlign = "center";
+    ctx.font = "26px monospace";
+    ctx.fillStyle = "white";
+    ctx.shadowColor = "rgba(100,200,255,.8)";
+    ctx.shadowBlur = 10;
+    ctx.fillText(lvl[3], boxX + boxW / 2, boxY + 40);
     ctx.shadowBlur = 0;
 
-    // Score
-    ctx.font = "16px monospace";
-    ctx.fillText(`SCORE: ${this.s}`, 20, 55);
+    ctx.font = "9px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fillText(lvl[0], boxX + boxW / 2, boxY + 55);
+
+    ctx.font = "10px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fillText(lvl[2].toFixed(3), boxX + boxW / 2, boxY + 70);
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.font = "18px monospace";
+    ctx.fillStyle = "white";
+    ctx.shadowColor = "rgba(100,200,255,.6)";
+    ctx.shadowBlur = 8;
+    ctx.fillText(lvl[0], 20, 25);
+    ctx.shadowBlur = 0;
+
+    ctx.font = "12px monospace";
+    ctx.fillStyle = "rgba(100,200,255,.8)";
+    ctx.fillText(`Element ${lvl[3]} - Atomic #${lvl[1]}`, 20, 42);
+
+    let runTime = (Date.now() - this.startTime) / 1000;
+
+    ctx.textAlign = "left";
+    ctx.font = "14px monospace";
+
+    ctx.fillStyle = "rgba(220,230,240,.9)";
+    ctx.fillText(`Run Time: ${runTime.toFixed(1)}s`, 20, 62);
+
+    let fastestTime = localStorage.getItem("fastestTime");
+    if (fastestTime) {
+      ctx.fillStyle = "rgba(255,200,100,.9)";
+      ctx.fillText(`Best Time: ${parseFloat(fastestTime).toFixed(1)}s`, 20, 80);
+    }
 
     if (this.cycle > 0) {
-      ctx.fillStyle = "rgb(255,150,100)";
-      ctx.font = "14px monospace";
-      ctx.fillText(`CYCLE: ${this.cycle}`, 20, 80);
-      ctx.fillStyle = "rgb(200,200,200)";
-      ctx.fillText(`Storms: ${this.storms.length}`, 20, 100);
-      ctx.fillStyle = "white";
-      ctx.fillText(
-        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
-          this.o.length
-        }`,
-        20,
-        120
-      );
-    } else {
-      ctx.fillStyle = "white";
-      ctx.font = "14px monospace";
-      ctx.fillText(
-        `Electrons: ${this.o.filter((o) => o.occupied).length}/${
-          this.o.length
-        }`,
-        20,
-        80
-      );
+      ctx.fillStyle = "rgba(255,150,100,.9)";
+      ctx.fillText(`Cycle: ${this.cycle}`, 20, 98);
     }
 
-    let timeLeft = Math.max(0, this.T - this.t);
-    if (this.g && this.g.easyMode) {
-      ctx.fillStyle = "rgb(100,255,100)";
-      ctx.font = "14px monospace";
-      ctx.fillText("Timer: OFF", 20, this.cycle > 0 ? 140 : 100);
-    } else {
-      ctx.fillStyle = timeLeft < 10 ? "rgb(255,100,100)" : "white";
-      ctx.font = "14px monospace";
-      ctx.fillText(
-        `Timer: ${timeLeft.toFixed(1)}s`,
-        20,
-        this.cycle > 0 ? 140 : 100
-      );
-    }
-
-    if (
-      timeLeft <= 10 &&
-      timeLeft > 0 &&
-      !this.w &&
-      this.a &&
-      !(this.g && this.g.easyMode)
-    ) {
-      this.a.p(6, 0.7);
-      this.w = 1;
-    }
-
-    if (this.checkComplete()) {
+    if (this.bestTimeNotification > 0) {
       ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
 
-      let boxW = 400,
-        boxH = 120;
-      let boxX = 200,
-        boxY = 240;
-
-      ctx.fillStyle = "rgba(20,30,50,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(255,255,100)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      ctx.textAlign = "center";
-      ctx.font = "24px monospace";
-      ctx.shadowColor = "rgb(255,255,0)";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "rgb(255,255,100)";
-
-      if (this.l >= this.L.length - 1 && this.cycle === 0) {
-        ctx.fillText("INFINITE MODE UNLOCKED!", 400, boxY + 45);
-      } else {
-        ctx.fillText("LEVEL COMPLETE!", 400, boxY + 45);
+      let fadeTime = 0.5;
+      let alpha = 1;
+      if (this.bestTimeNotification < fadeTime) {
+        alpha = this.bestTimeNotification / fadeTime;
+      } else if (this.bestTimeNotification > 4.0 - fadeTime) {
+        alpha = (4.0 - this.bestTimeNotification) / fadeTime;
       }
 
-      ctx.font = "16px monospace";
-      ctx.shadowColor = "rgb(0,255,255)";
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = "rgb(100,200,255)";
-      ctx.fillText(">> CLICK FOR NEXT LEVEL <<", 400, boxY + 75);
-      ctx.restore();
-    } else if (timeLeft <= 0 && !(this.g && this.g.easyMode)) {
-      ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
+      let notifX = 300,
+        notifY = 15,
+        notifW = 200,
+        notifH = 50;
 
-      let boxW = 400,
-        boxH = 100;
-      let boxX = 200,
-        boxY = 250;
-
-      ctx.fillStyle = "rgba(50,20,20,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(255,100,100)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
+      ctx.fillStyle = `rgba(20,30,50,${alpha * 0.95})`;
+      ctx.fillRect(notifX, notifY, notifW, notifH);
+      ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.8})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(notifX, notifY, notifW, notifH);
+      ctx.font = "12px monospace";
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
       ctx.textAlign = "center";
-      ctx.font = "20px monospace";
-      ctx.shadowColor = "rgb(255,100,100)";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "rgb(255,150,150)";
-      ctx.fillText("TIME'S UP! CLICK TO RETRY", 400, boxY + 60);
+      ctx.fillText("⚡ NEW BEST TIME ⚡", notifX + notifW / 2, notifY + 20);
+      ctx.font = "14px monospace";
+      ctx.fillStyle = `rgba(100,200,255,${alpha})`;
+      ctx.fillText(
+        `${this.newBestTime.toFixed(1)}s`,
+        notifX + notifW / 2,
+        notifY + 37
+      );
       ctx.restore();
     }
 
     if (this.tip) {
       ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,.8)";
-      ctx.fillRect(0, 0, 800, 600);
-
-      let boxW = 400,
-        boxH = 170;
-      let boxX = 200,
-        boxY = 215;
-
-      ctx.fillStyle = "rgba(20,30,50,.95)";
-      ctx.fillRect(boxX, boxY, boxW, boxH);
-      ctx.strokeStyle = "rgb(100,150,255)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      ctx.textAlign = "center";
-      ctx.fillStyle = "rgb(255,255,100)";
-      ctx.font = "20px monospace";
-      ctx.fillText("ELEMENT BUILT!", 400, boxY + 35);
-
-      let prevIdx = this.l === 0 ? this.L.length - 1 : this.l - 1;
-      ctx.fillStyle = "rgb(100,200,255)";
-      ctx.font = "16px monospace";
-      ctx.fillText(this.L[prevIdx][0], 400, boxY + 60);
-
-      ctx.fillStyle = "rgb(255,200,100)";
-      ctx.font = "14px monospace";
-      const lines = this.F[prevIdx].split("\n");
-      lines.forEach((line, i) => {
-        ctx.fillText(line, 400, boxY + 85 + i * 18);
-      });
-
-      ctx.fillStyle = "rgba(150,150,150,.8)";
-      ctx.font = "12px monospace";
-      ctx.fillText(
-        `(Auto-closes in ${Math.ceil(4 - (this.t - this.ts))}s)`,
+      let boxW = 450,
+        boxH = 280,
+        boxX = 175,
+        boxY = 160;
+      this.drawModal(ctx, boxX, boxY, boxW, boxH);
+      let currentElement = this.L[this.l];
+      this.drawStyledText(
+        ctx,
+        `${currentElement[0]} Complete!`,
         400,
-        boxY + 140
+        boxY + 40,
+        "22px monospace",
+        "rgb(255,200,100)",
+        "rgb(255,150,100)",
+        10
+      );
+      ctx.font = "16px monospace";
+      ctx.fillStyle = "rgb(100,200,255)";
+      const lines = this.F[this.l].split("\n");
+      lines.forEach((line, i) => {
+        ctx.fillText(line, 400, boxY + 75 + i * 20);
+      });
+      this.drawStyledText(
+        ctx,
+        `Symbol: ${currentElement[3]} • Atomic #: ${currentElement[1]} • Mass: ${currentElement[2]}`,
+        400,
+        boxY + 140,
+        "14px monospace",
+        "rgba(200,200,200,0.9)"
+      );
+      let statusText =
+        this.l >= this.L.length - 1 && this.cycle === 0
+          ? "🎉 Infinite Mode Unlocked! 🎉"
+          : "Level Complete!";
+      this.drawStyledText(
+        ctx,
+        statusText,
+        400,
+        boxY + 180,
+        "18px monospace",
+        "rgb(255,200,100)"
+      );
+
+      // Action prompt
+      this.drawStyledText(
+        ctx,
+        "Click to continue to next level",
+        400,
+        boxY + 220,
+        "14px monospace",
+        "rgba(100,200,255,0.8)"
       );
 
       ctx.restore();
