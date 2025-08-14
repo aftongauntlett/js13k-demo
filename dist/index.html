@@ -329,40 +329,48 @@ class T {
     this.o.style.cssText =
       "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;font:12px monospace;color:#ccc";
 
-    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:600px;max-height:80vh;overflow:auto">
-      <div style="padding:15px;border-bottom:1px solid #69f;background:#222;display:flex;justify-content:space-between;align-items:center">
+    this.o.innerHTML = `<div style="background:#111;border:2px solid #69f;width:90%;max-width:600px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="padding:15px;border-bottom:1px solid #69f;background:#222;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <h2 style="margin:0;color:#ff6">Atomic Assembly Guide</h2>
         <button style="background:#333;border:1px solid #69f;color:#69f;padding:5px 10px;cursor:pointer">✕</button>
       </div>
-      <div style="padding:20px;line-height:1.4">
+      <div style="padding:20px;line-height:1.4;overflow:auto;flex:1">
         <h3 style="color:#fa0;margin:0 0 10px">How to Play</h3>
-        <p>• Place electrons in orbitals by moving your cursor<br>
-        • Blue = s orbitals, Orange = p orbitals<br>
-        • Max 2 electrons per orbital<br>
-        • Complete all orbitals before time runs out</p>
+        <p>• Guide electrons into orbitals with your cursor<br>
+        • Blue electrons (s) are ATTRACTED to your mouse<br>
+        • Orange electrons (p) are REPELLED by your mouse<br>
+        • Max 2 electrons per orbital</p>
         
         <h3 style="color:#fa0;margin:20px 0 10px">Rules</h3>
-        <p>• Fill s orbitals before p orbitals<br>
-        • Follow Hund's rule: fill singly first<br>
-        • Complete all 6 elements to unlock infinite mode</p>
+        <p>• Fill inner shells before outer shells<br>
+        • s orbitals must be filled before p orbitals<br>
+        • Avoid hitting occupied orbitals (causes ejection penalty)<br>
+        • Complete all 6 elements to unlock infinite mode<br>
+        • Earn an an achievement for completing all levels the fastest<br>
+        • Infinite mode features electromagnetic storms that affect electrons</p>
         
         <h3 style="color:#fa0;margin:20px 0 10px">Controls</h3>
-        <p>• Mouse: attract/repel electrons<br>
+        <p>• Mouse: attract blue electrons, repel orange ones<br>
         • M: mute/unmute audio<br>
         • ESC: this help menu</p>
         
         <h3 style="color:#fa0;margin:20px 0 10px">Elements</h3>
-        <div style="font-size:10px">
-        <p><b>Hydrogen (H)</b> - Simplest atom, 1 proton, 1 electron<br>
-        <b>Helium (He)</b> - Noble gas with filled electron shell<br>
-        <b>Lithium (Li)</b> - Alkali metal, reactive outer electron<br>
-        <b>Carbon (C)</b> - Forms 4 bonds, basis of organic chemistry<br>
-        <b>Nitrogen (N)</b> - Essential for proteins and DNA<br>
-        <b>Oxygen (O)</b> - Reactive gas, forms water, supports combustion</p>
-        </div>
+        <p>• <b>Hydrogen (H)</b> - Simplest atom, 1 proton, 1 electron<br>
+        • <b>Helium (He)</b> - Noble gas with filled electron shell<br>
+        • <b>Lithium (Li)</b> - Alkali metal, reactive outer electron<br>
+        • <b>Carbon (C)</b> - Forms 4 bonds, basis of organic chemistry<br>
+        • <b>Nitrogen (N)</b> - Essential for proteins and DNA<br>
+        • <b>Oxygen (O)</b> - Reactive gas, forms water, supports combustion</p>
+        
+        <h3 style="color:#fa0;margin:20px 0 10px">Science Principles</h3>
+        <p>• <b>Aufbau Principle</b> - Fill lower energy orbitals first<br>
+        • <b>Pauli Exclusion</b> - Max 2 electrons per orbital<br>
+        • <b>Hund's Rule</b> - Fill orbitals singly before pairing<br>
+        • <b>Electron Shells</b> - Energy levels around the nucleus<br>
+        • <b>s vs p Orbitals</b> - Different shapes and energy levels<br>
+        • <b>Electromagnetic Storms</b> - Chaotic fields that disrupt electron movement</p>
       </div>
     </div>`;
-
     this.o.querySelector("button").onclick = () => this.hide();
 
     document.body.appendChild(this.o);
@@ -469,12 +477,12 @@ class O {
     ];
 
     this.F = [
-      "1 proton\n1 electron",
-      "Noble gas\nfilled shell",
-      "Alkali metal\nouter electron",
-      "4 bonds\norganic base",
-      "Proteins\nDNA",
-      "Forms water\nsupports fire",
+      "Simplest atom\nMakes up 75% of universe",
+      "Noble gas - never reacts\nUsed in balloons & diving",
+      "Lightest metal\nUsed in phone batteries",
+      "Forms 4 bonds\nBase of all life on Earth",
+      "Essential for DNA\nMakes up 78% of air",
+      "Supports combustion\n21% of Earth's atmosphere",
     ];
 
     this.l = 0;
@@ -816,19 +824,19 @@ class O {
       shells.add(orb.shellR);
     }
     ctx.save();
-
-    // Add completion glow effect
     if (this.shellGlow > 0) {
-      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.6})`;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([]);
+      ctx.shadowColor = `rgba(255,255,150,${this.shellGlow * 0.8})`;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.9})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
       [...shells].map((r) => {
         ctx.beginPath();
         ctx.arc(400, 300, r, 0, 6.28);
         ctx.stroke();
       });
+      ctx.shadowBlur = 0;
     }
-
     ctx.strokeStyle = "rgba(100,150,200,.3)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
@@ -840,26 +848,21 @@ class O {
     ctx.setLineDash([]);
     ctx.restore();
     ctx.save();
-
     let fillRatio = total > 0 ? f / total : 0;
-
     let p = lvl[1];
     let n = Math.round(lvl[2] - lvl[1]);
     let nucleons = p + n;
-
     for (let s = 0; s < 8; s++) {
       let sparkleAngle = (s / 8) * 6.28 + this.t * 0.3;
       let sparkleR = 18 + Math.sin(this.t * 2 + s) * 6;
       let sx = 400 + Math.cos(sparkleAngle) * sparkleR;
       let sy = 300 + Math.sin(sparkleAngle) * sparkleR;
       let sparkleAlpha = 0.1 + 0.15 * Math.sin(this.t * 3 + s * 1.5);
-
       ctx.fillStyle = `rgba(255,255,200,${sparkleAlpha})`;
       ctx.beginPath();
       ctx.arc(sx, sy, 0.8, 0, 6.28);
       ctx.fill();
     }
-
     for (let i = 0; i < nucleons; i++) {
       let angle = (i / nucleons) * 6.28 + this.t * 0.08;
       let r = 2 + Math.sin(this.t * 0.4 + i) * 3;
@@ -882,19 +885,15 @@ class O {
           100 * intensity
         },255,${flowAlpha})`;
       }
-
       ctx.beginPath();
       ctx.arc(x, y, nucleonRadius, 0, 6.28);
       ctx.fill();
     }
-
     ctx.restore();
-
     for (let orb of this.o) {
       ctx.save();
       let c = colors[orb.type];
       let stunned = orb.stunned > 0.1;
-
       let shakeX = 0,
         shakeY = 0;
       if (orb.shake > 0) {
@@ -902,7 +901,6 @@ class O {
         shakeX = (Math.random() - 0.5) * shakeIntensity;
         shakeY = (Math.random() - 0.5) * shakeIntensity;
       }
-
       if (stunned) {
         ctx.save();
         let warningPulse = 0.3 + 0.4 * Math.sin(this.t * 6);
@@ -915,13 +913,11 @@ class O {
         ctx.setLineDash([]);
         ctx.restore();
       }
-
       ctx.strokeStyle = stunned ? "rgba(80,80,80,.4)" : c[0] + "0.8)";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(orb.x + shakeX, orb.y + shakeY, 20, 0, 6.28);
       ctx.stroke();
-
       if (orb.occupied) {
         let ex = orb.x + shakeX + Math.cos(orb.eAngle) * 18;
         let ey = orb.y + shakeY + Math.sin(orb.eAngle) * 18;
@@ -957,13 +953,11 @@ class O {
       }
       ctx.restore();
     }
-
     for (let orb of this.o) {
       ctx.save();
       ctx.font = "10px monospace";
       ctx.fillStyle = "rgba(200,200,200,0.7)";
       ctx.textAlign = "center";
-
       if (orb.shellR === 80) {
         ctx.fillText("1s", orb.x, orb.y - 35);
       } else if (orb.shellR === 140) {
@@ -975,7 +969,6 @@ class O {
       }
       ctx.restore();
     }
-
     for (let storm of this.storms) {
       ctx.save();
       let lifeRatio = storm.life / storm.maxLife;
@@ -994,25 +987,20 @@ class O {
       ctx.fill();
       ctx.restore();
     }
-
     ctx.save();
-
     let boxX = 700,
       boxY = 20,
       boxW = 80,
       boxH = 80;
-
     ctx.fillStyle = "rgba(20,30,50,.9)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
     ctx.strokeStyle = "rgba(100,200,255,.8)";
     ctx.lineWidth = 2;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
-
     ctx.fillStyle = "rgba(100,200,255,.8)";
     ctx.font = "11px monospace";
     ctx.textAlign = "left";
     ctx.fillText(lvl[1], boxX + 5, boxY + 14);
-
     ctx.textAlign = "center";
     ctx.font = "26px monospace";
     ctx.fillStyle = "white";
@@ -1020,17 +1008,13 @@ class O {
     ctx.shadowBlur = 10;
     ctx.fillText(lvl[3], boxX + boxW / 2, boxY + 40);
     ctx.shadowBlur = 0;
-
     ctx.font = "9px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.fillText(lvl[0], boxX + boxW / 2, boxY + 55);
-
     ctx.font = "10px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.fillText(lvl[2].toFixed(3), boxX + boxW / 2, boxY + 70);
-
     ctx.restore();
-
     ctx.save();
     ctx.textAlign = "left";
     ctx.font = "18px monospace";
@@ -1039,33 +1023,25 @@ class O {
     ctx.shadowBlur = 8;
     ctx.fillText(lvl[0], 20, 25);
     ctx.shadowBlur = 0;
-
     ctx.font = "12px monospace";
     ctx.fillStyle = "rgba(100,200,255,.8)";
     ctx.fillText(`Element ${lvl[3]} - Atomic #${lvl[1]}`, 20, 42);
-
     let runTime = (Date.now() - this.startTime) / 1000;
-
     ctx.textAlign = "left";
     ctx.font = "14px monospace";
-
     ctx.fillStyle = "rgba(220,230,240,.9)";
     ctx.fillText(`Run Time: ${runTime.toFixed(1)}s`, 20, 62);
-
     let fastestTime = localStorage.getItem("fastestTime");
     if (fastestTime) {
       ctx.fillStyle = "rgba(255,200,100,.9)";
       ctx.fillText(`Best Time: ${parseFloat(fastestTime).toFixed(1)}s`, 20, 80);
     }
-
     if (this.cycle > 0) {
       ctx.fillStyle = "rgba(255,150,100,.9)";
       ctx.fillText(`Cycle: ${this.cycle}`, 20, 98);
     }
-
     if (this.bestTimeNotification > 0) {
       ctx.save();
-
       let fadeTime = 0.5;
       let alpha = 1;
       if (this.bestTimeNotification < fadeTime) {
@@ -1073,12 +1049,10 @@ class O {
       } else if (this.bestTimeNotification > 4.0 - fadeTime) {
         alpha = (4.0 - this.bestTimeNotification) / fadeTime;
       }
-
       let notifX = 300,
         notifY = 15,
         notifW = 200,
         notifH = 50;
-
       ctx.fillStyle = `rgba(20,30,50,${alpha * 0.95})`;
       ctx.fillRect(notifX, notifY, notifW, notifH);
       ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.8})`;
@@ -1097,7 +1071,6 @@ class O {
       );
       ctx.restore();
     }
-
     if (this.tip) {
       ctx.save();
       let boxW = 450,
@@ -1383,17 +1356,14 @@ class G {
         try {
           await this.audio.i();
           this.audio.m();
-        } catch (err) {
-          // Will retry on click
-        }
+        } catch (err) {}
       }
     });
 
-    // Initialize audio on first mouse interaction
     this.c.addEventListener("mousedown", async () => {
       if (!this.audio.c) {
         await this.audio.i();
-        this.audio.m(); // Start background music
+        this.audio.m();
       }
     });
 
@@ -1410,21 +1380,15 @@ class G {
       if (this.o.tip) {
         this.o.tip = 0;
         this.audio.p(5, 0.6);
-
-        // If level was completed when tip was shown, advance to next level
         if (this.o.checkComplete()) {
           this.o.nextLevel();
           this.spawn();
         }
         return;
       }
-
-      // Don't allow level advancement during completion delay
       if (this.o.completionDelay > 0) {
         return;
       }
-
-      // Check if level is complete and advance (only if tip wasn't showing and no delay)
       if (this.o.checkComplete()) {
         this.o.nextLevel();
         this.spawn();
@@ -1592,7 +1556,6 @@ class G {
 
     this.o.d(this.ctx);
 
-    // Always draw electrons unless tip is showing
     if (!this.o.tip) {
       for (let e of this.electrons) {
         e.d(this.ctx);
@@ -1602,13 +1565,12 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue = s orbitals, Orange = p orbitals | M:Mute ESC:Tutorial",
+      "Blue (s) attracted to cursor, Orange (p) repelled | M:Mute ESC:Tutorial",
       20,
       580
     );
 
     // Bottom right - Level info with infinite level support
-    let currentElement = this.o.L[this.o.l];
     this.ctx.textAlign = "right";
     this.ctx.fillStyle = "rgba(100, 200, 255, 0.8)";
     this.ctx.font = "14px monospace";
@@ -1617,10 +1579,8 @@ class G {
     let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
 
     if (this.o.cycle > 0) {
-      // In infinite mode - show total levels completed
       this.ctx.fillText(`Level: ${totalLevelsCompleted}`, 780, 580);
     } else {
-      // First playthrough - show traditional level/total format
       this.ctx.fillText(`Level: ${this.o.l + 1}/${this.o.L.length}`, 780, 580);
     }
 
@@ -1633,10 +1593,7 @@ class G {
     requestAnimationFrame(() => this.loop());
   }
 
-  start() {}
-
   hit(orb) {
-    // Set game reference for orbital system to access electrons
     this.o.gameRef = this;
     this.o.hit(orb);
   }

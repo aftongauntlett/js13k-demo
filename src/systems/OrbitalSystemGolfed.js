@@ -89,12 +89,12 @@ class O {
     ];
 
     this.F = [
-      "1 proton\n1 electron",
-      "Noble gas\nfilled shell",
-      "Alkali metal\nouter electron",
-      "4 bonds\norganic base",
-      "Proteins\nDNA",
-      "Forms water\nsupports fire",
+      "Simplest atom\nMakes up 75% of universe",
+      "Noble gas - never reacts\nUsed in balloons & diving",
+      "Lightest metal\nUsed in phone batteries",
+      "Forms 4 bonds\nBase of all life on Earth",
+      "Essential for DNA\nMakes up 78% of air",
+      "Supports combustion\n21% of Earth's atmosphere",
     ];
 
     this.l = 0;
@@ -436,19 +436,19 @@ class O {
       shells.add(orb.shellR);
     }
     ctx.save();
-
-    // Add completion glow effect
     if (this.shellGlow > 0) {
-      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.6})`;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([]);
+      ctx.shadowColor = `rgba(255,255,150,${this.shellGlow * 0.8})`;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = `rgba(255,255,150,${this.shellGlow * 0.9})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
       [...shells].map((r) => {
         ctx.beginPath();
         ctx.arc(400, 300, r, 0, 6.28);
         ctx.stroke();
       });
+      ctx.shadowBlur = 0;
     }
-
     ctx.strokeStyle = "rgba(100,150,200,.3)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
@@ -460,26 +460,21 @@ class O {
     ctx.setLineDash([]);
     ctx.restore();
     ctx.save();
-
     let fillRatio = total > 0 ? f / total : 0;
-
     let p = lvl[1];
     let n = Math.round(lvl[2] - lvl[1]);
     let nucleons = p + n;
-
     for (let s = 0; s < 8; s++) {
       let sparkleAngle = (s / 8) * 6.28 + this.t * 0.3;
       let sparkleR = 18 + Math.sin(this.t * 2 + s) * 6;
       let sx = 400 + Math.cos(sparkleAngle) * sparkleR;
       let sy = 300 + Math.sin(sparkleAngle) * sparkleR;
       let sparkleAlpha = 0.1 + 0.15 * Math.sin(this.t * 3 + s * 1.5);
-
       ctx.fillStyle = `rgba(255,255,200,${sparkleAlpha})`;
       ctx.beginPath();
       ctx.arc(sx, sy, 0.8, 0, 6.28);
       ctx.fill();
     }
-
     for (let i = 0; i < nucleons; i++) {
       let angle = (i / nucleons) * 6.28 + this.t * 0.08;
       let r = 2 + Math.sin(this.t * 0.4 + i) * 3;
@@ -502,19 +497,15 @@ class O {
           100 * intensity
         },255,${flowAlpha})`;
       }
-
       ctx.beginPath();
       ctx.arc(x, y, nucleonRadius, 0, 6.28);
       ctx.fill();
     }
-
     ctx.restore();
-
     for (let orb of this.o) {
       ctx.save();
       let c = colors[orb.type];
       let stunned = orb.stunned > 0.1;
-
       let shakeX = 0,
         shakeY = 0;
       if (orb.shake > 0) {
@@ -522,7 +513,6 @@ class O {
         shakeX = (Math.random() - 0.5) * shakeIntensity;
         shakeY = (Math.random() - 0.5) * shakeIntensity;
       }
-
       if (stunned) {
         ctx.save();
         let warningPulse = 0.3 + 0.4 * Math.sin(this.t * 6);
@@ -535,13 +525,11 @@ class O {
         ctx.setLineDash([]);
         ctx.restore();
       }
-
       ctx.strokeStyle = stunned ? "rgba(80,80,80,.4)" : c[0] + "0.8)";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(orb.x + shakeX, orb.y + shakeY, 20, 0, 6.28);
       ctx.stroke();
-
       if (orb.occupied) {
         let ex = orb.x + shakeX + Math.cos(orb.eAngle) * 18;
         let ey = orb.y + shakeY + Math.sin(orb.eAngle) * 18;
@@ -577,13 +565,11 @@ class O {
       }
       ctx.restore();
     }
-
     for (let orb of this.o) {
       ctx.save();
       ctx.font = "10px monospace";
       ctx.fillStyle = "rgba(200,200,200,0.7)";
       ctx.textAlign = "center";
-
       if (orb.shellR === 80) {
         ctx.fillText("1s", orb.x, orb.y - 35);
       } else if (orb.shellR === 140) {
@@ -595,7 +581,6 @@ class O {
       }
       ctx.restore();
     }
-
     for (let storm of this.storms) {
       ctx.save();
       let lifeRatio = storm.life / storm.maxLife;
@@ -614,25 +599,20 @@ class O {
       ctx.fill();
       ctx.restore();
     }
-
     ctx.save();
-
     let boxX = 700,
       boxY = 20,
       boxW = 80,
       boxH = 80;
-
     ctx.fillStyle = "rgba(20,30,50,.9)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
     ctx.strokeStyle = "rgba(100,200,255,.8)";
     ctx.lineWidth = 2;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
-
     ctx.fillStyle = "rgba(100,200,255,.8)";
     ctx.font = "11px monospace";
     ctx.textAlign = "left";
     ctx.fillText(lvl[1], boxX + 5, boxY + 14);
-
     ctx.textAlign = "center";
     ctx.font = "26px monospace";
     ctx.fillStyle = "white";
@@ -640,17 +620,13 @@ class O {
     ctx.shadowBlur = 10;
     ctx.fillText(lvl[3], boxX + boxW / 2, boxY + 40);
     ctx.shadowBlur = 0;
-
     ctx.font = "9px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.fillText(lvl[0], boxX + boxW / 2, boxY + 55);
-
     ctx.font = "10px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.fillText(lvl[2].toFixed(3), boxX + boxW / 2, boxY + 70);
-
     ctx.restore();
-
     ctx.save();
     ctx.textAlign = "left";
     ctx.font = "18px monospace";
@@ -659,33 +635,25 @@ class O {
     ctx.shadowBlur = 8;
     ctx.fillText(lvl[0], 20, 25);
     ctx.shadowBlur = 0;
-
     ctx.font = "12px monospace";
     ctx.fillStyle = "rgba(100,200,255,.8)";
     ctx.fillText(`Element ${lvl[3]} - Atomic #${lvl[1]}`, 20, 42);
-
     let runTime = (Date.now() - this.startTime) / 1000;
-
     ctx.textAlign = "left";
     ctx.font = "14px monospace";
-
     ctx.fillStyle = "rgba(220,230,240,.9)";
     ctx.fillText(`Run Time: ${runTime.toFixed(1)}s`, 20, 62);
-
     let fastestTime = localStorage.getItem("fastestTime");
     if (fastestTime) {
       ctx.fillStyle = "rgba(255,200,100,.9)";
       ctx.fillText(`Best Time: ${parseFloat(fastestTime).toFixed(1)}s`, 20, 80);
     }
-
     if (this.cycle > 0) {
       ctx.fillStyle = "rgba(255,150,100,.9)";
       ctx.fillText(`Cycle: ${this.cycle}`, 20, 98);
     }
-
     if (this.bestTimeNotification > 0) {
       ctx.save();
-
       let fadeTime = 0.5;
       let alpha = 1;
       if (this.bestTimeNotification < fadeTime) {
@@ -693,12 +661,10 @@ class O {
       } else if (this.bestTimeNotification > 4.0 - fadeTime) {
         alpha = (4.0 - this.bestTimeNotification) / fadeTime;
       }
-
       let notifX = 300,
         notifY = 15,
         notifW = 200,
         notifH = 50;
-
       ctx.fillStyle = `rgba(20,30,50,${alpha * 0.95})`;
       ctx.fillRect(notifX, notifY, notifW, notifH);
       ctx.strokeStyle = `rgba(100,200,255,${alpha * 0.8})`;
@@ -717,7 +683,6 @@ class O {
       );
       ctx.restore();
     }
-
     if (this.tip) {
       ctx.save();
       let boxW = 450,

@@ -16,17 +16,14 @@ class G {
         try {
           await this.audio.i();
           this.audio.m();
-        } catch (err) {
-          // Will retry on click
-        }
+        } catch (err) {}
       }
     });
 
-    // Initialize audio on first mouse interaction
     this.c.addEventListener("mousedown", async () => {
       if (!this.audio.c) {
         await this.audio.i();
-        this.audio.m(); // Start background music
+        this.audio.m();
       }
     });
 
@@ -43,21 +40,15 @@ class G {
       if (this.o.tip) {
         this.o.tip = 0;
         this.audio.p(5, 0.6);
-
-        // If level was completed when tip was shown, advance to next level
         if (this.o.checkComplete()) {
           this.o.nextLevel();
           this.spawn();
         }
         return;
       }
-
-      // Don't allow level advancement during completion delay
       if (this.o.completionDelay > 0) {
         return;
       }
-
-      // Check if level is complete and advance (only if tip wasn't showing and no delay)
       if (this.o.checkComplete()) {
         this.o.nextLevel();
         this.spawn();
@@ -225,7 +216,6 @@ class G {
 
     this.o.d(this.ctx);
 
-    // Always draw electrons unless tip is showing
     if (!this.o.tip) {
       for (let e of this.electrons) {
         e.d(this.ctx);
@@ -235,13 +225,12 @@ class G {
     this.ctx.fillStyle = "rgba(255,255,255,.7)";
     this.ctx.font = "12px monospace";
     this.ctx.fillText(
-      "Blue = s orbitals, Orange = p orbitals | M:Mute ESC:Tutorial",
+      "Blue (s) attracted to cursor, Orange (p) repelled | M:Mute ESC:Tutorial",
       20,
       580
     );
 
     // Bottom right - Level info with infinite level support
-    let currentElement = this.o.L[this.o.l];
     this.ctx.textAlign = "right";
     this.ctx.fillStyle = "rgba(100, 200, 255, 0.8)";
     this.ctx.font = "14px monospace";
@@ -250,10 +239,8 @@ class G {
     let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
 
     if (this.o.cycle > 0) {
-      // In infinite mode - show total levels completed
       this.ctx.fillText(`Level: ${totalLevelsCompleted}`, 780, 580);
     } else {
-      // First playthrough - show traditional level/total format
       this.ctx.fillText(`Level: ${this.o.l + 1}/${this.o.L.length}`, 780, 580);
     }
 
@@ -266,10 +253,7 @@ class G {
     requestAnimationFrame(() => this.loop());
   }
 
-  start() {}
-
   hit(orb) {
-    // Set game reference for orbital system to access electrons
     this.o.gameRef = this;
     this.o.hit(orb);
   }

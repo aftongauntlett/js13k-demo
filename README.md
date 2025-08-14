@@ -1,4 +1,4 @@
-# Atomic Puzzle Game - JS13K Practice
+# Orbital Order (Aufbau) - JS13K Practice
 
 [![Commit Activity](https://img.shields.io/github/commit-activity/m/aftongauntlett/js13k-demo?logo=git)](https://github.com/aftongauntlett/js13k-demo/commits)
 [![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://js13k-demo.vercel.app)
@@ -21,11 +21,11 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 
 ## Features (Fully Optimized) ✨
 
-🎵 **Procedural Audio** - Musical chord progressions and sound effects from code alone  
-🧪 **Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
-🎮 **Intuitive Controls** - Mouse-based electromagnetic field simulation  
-⚛️ **Educational Value** - Learn 1s, 2s, 2p orbitals and quantum mechanical rules  
-🎨 **Visual Feedback** - Orbital labels, rule violations, particle systems under 13KB!
+**Procedural Audio** - Musical chord progressions and sound effects from code alone  
+**Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
+**Intuitive Controls** - Mouse-based electromagnetic field simulation  
+**Educational Value** - Learn 1s, 2s, 2p orbitals and quantum mechanical rules  
+**Visual Feedback** - Orbital labels, rule violations, particle systems under 13KB!
 
 ## How to Play 🎮
 
@@ -34,12 +34,13 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 - Guide electrons into matching colored orbitals to build atoms
 - Follow real electron configuration rules: 1s² → 2s² → 2p⁶
 - Orbitals glow red when they cannot accept electrons due to quantum rules
-- **Two-hit knockout system** - Hit occupied orbitals twice to remove electrons
-  - First hit: Orbital shakes with audio feedback
-  - Second hit: Electron is ejected and respawns elsewhere
+- **Two-hit knockout system** - Click occupied orbitals twice to remove electrons
+  - First click: Orbital shakes with audio feedback
+  - Second click: Electron is ejected and respawns elsewhere
 - Complete atoms by filling all orbitals according to the Aufbau principle
 - Learn real atomic structure: H (1s¹), He (1s²), Li (1s² 2s¹), C (1s² 2s² 2p²), N (1s² 2s² 2p³)
-- **Press 'G' for Glossary** - Scientific explanations of quantum principles
+- **Complete all 6 levels to earn a time achievement** - Your completion time is saved!
+- **Press 'ESC' for Tutorial** - Learn controls and quantum rules
 - **Press 'M' to toggle mute** - Experience procedural ambient music!
 
 ## Educational Elements ⚛️
