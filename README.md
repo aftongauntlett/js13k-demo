@@ -2,15 +2,15 @@
 
 [![Commit Activity](https://img.shields.io/github/commit-activity/m/aftongauntlett/js13k-demo?logo=git)](https://github.com/aftongauntlett/js13k-demo/commits)
 [![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://js13k-demo.vercel.app)
-[![JS13K Ready](https://img.shields.io/badge/JS13K-2.3KB%20under%20budget-brightgreen?logo=webgl)](https://js13kgames.com/)
+[![JS13K Ready](https://img.shields.io/badge/JS13K-At%20Budget%20Limit-yellow?logo=webgl)](https://js13kgames.com/)
 
-> **SUCCESS!** Through massive optimization and "golfing" techniques, this game is now **JS13K compliant** at just **11.5KB zipped** (1.5KB under the 13KB limit). What started as a learning project became a fully optimized JS13K game demonstrating atomic physics education in minimal space.
+> **SUCCESS!** Through massive optimization and "golfing" techniques, this game is now **JS13K compliant** at just **13.0KB zipped** (right at the 13KB limit). What started as a learning project became a fully optimized JS13K game demonstrating atomic physics education in minimal space.
 
 A physics-based puzzle game demonstrating real atomic structures through interactive orbital mechanics. Build authentic elements from Hydrogen to Nitrogen by guiding electrons into their proper electron shells using electromagnetic fields. Now fully optimized for JS13K competition constraints!
 
 ## JS13K Optimization Achievements ⚡
 
-**From 72KB → 11.5KB (84% size reduction!)**
+**From 72KB → 13.0KB (82% size reduction!)**
 
 - **Ultra-Golfed Classes**: `AudioSystem` → `A`, `OrbitalSystem` → `O`, `Electron` → `E`
 - **Method Compression**: `playSound()` → `p()`, `init()` → `i()`, `mute()` → `t()`
@@ -73,17 +73,17 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 
 ```bash
 npm run dev    # Development server on :8080
-npm run build  # Build optimized game (~10.7KB zipped)
+npm run build  # Build optimized game (~13.0KB zipped)
 npm run size   # Check current size (alias for build)
 ```
 
 ### Build Output
 
 ```
-Built file: 39222 bytes (38.3 KB)
-Compression: 0.6% reduction
-Estimated ZIP size: ~11.5 KB
-JS13K budget remaining: ~1.5 KB ✅
+Built file: 44367 bytes (43.3 KB)
+Compression: 0.4% reduction
+Estimated ZIP size: ~13.0 KB
+JS13K budget remaining: ~0.0 KB ⚠️
 ```
 
 ---
