@@ -70,7 +70,8 @@ class A {
     const s = this.c.createBufferSource();
     const g = this.c.createGain();
     s.buffer = this.s[i];
-    g.gain.value = isFinite(e) ? e : 0.5;
+    // Lowered default sound effect volume from 0.5 to 0.22
+    g.gain.value = isFinite(e) ? e * 0.44 : 0.22;
     s.connect(g);
     g.connect(this.g);
     if (echo && this.delay) g.connect(this.delay);
@@ -104,7 +105,7 @@ class A {
     bass.type = "sine";
     bass.frequency.value = 110;
     bassGain.gain.setValueAtTime(0, this.c.currentTime);
-    bassGain.gain.linearRampToValueAtTime(0.006, this.c.currentTime + 4);
+    bassGain.gain.linearRampToValueAtTime(0.03, this.c.currentTime + 4); // Increased from 0.006
     bass.connect(bassGain);
     bassGain.connect(this.g);
     bass.start();
@@ -121,7 +122,7 @@ class A {
       filter.Q.value = 0.7;
 
       gain.gain.setValueAtTime(0, this.c.currentTime);
-      gain.gain.linearRampToValueAtTime(0.008, this.c.currentTime + 3 + i);
+      gain.gain.linearRampToValueAtTime(0.04, this.c.currentTime + 3 + i); // Increased from 0.008
 
       osc.connect(filter);
       filter.connect(gain);
@@ -176,11 +177,8 @@ class A {
       if (melody.frequency) {
         melodyGain.gain.cancelScheduledValues(this.c.currentTime);
         melodyGain.gain.setValueAtTime(0, this.c.currentTime);
-        melodyGain.gain.linearRampToValueAtTime(
-          0.004,
-          this.c.currentTime + 0.3
-        );
-        melodyGain.gain.linearRampToValueAtTime(0.001, this.c.currentTime + 2);
+        melodyGain.gain.linearRampToValueAtTime(0.02, this.c.currentTime + 0.3); // Increased from 0.004
+        melodyGain.gain.linearRampToValueAtTime(0.008, this.c.currentTime + 2);
 
         melody.frequency.exponentialRampToValueAtTime(
           note,

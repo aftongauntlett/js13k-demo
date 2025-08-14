@@ -42,7 +42,7 @@ class T {
         
         <h3 style="color:#fa0;margin:20px 0 10px">Rules</h3>
         <p>• Fill inner shells before outer shells<br>
-        • s orbitals must be filled before p orbitals<br>
+        • s-orbitals must be filled before p-orbitals<br>
         • Avoid hitting occupied orbitals (causes ejection penalty)<br>
         • Complete all 6 elements to unlock infinite mode<br>
         • Earn an an achievement for completing all levels the fastest<br>
@@ -61,12 +61,12 @@ class T {
         • <b>Nitrogen (N)</b> - Essential for proteins and DNA<br>
         • <b>Oxygen (O)</b> - Reactive gas, forms water, supports combustion</p>
         
-        <h3 style="color:#fa0;margin:20px 0 10px">Science Principles</h3>
+        <h3 style="color:#fa0;margin:20px 0 10px">Scientific Principles</h3>
         <p>• <b>Aufbau Principle</b> - Fill lower energy orbitals first<br>
         • <b>Pauli Exclusion</b> - Max 2 electrons per orbital<br>
         • <b>Hund's Rule</b> - Fill orbitals singly before pairing<br>
         • <b>Electron Shells</b> - Energy levels around the nucleus<br>
-        • <b>s vs p Orbitals</b> - Different shapes and energy levels<br>
+        • <b>s-orbitals vs p-orbitals</b> - Different shapes and energy levels<br>
         • <b>Electromagnetic Storms</b> - Chaotic fields that disrupt electron movement</p>
       </div>
     </div>`;

@@ -24,7 +24,7 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 **Procedural Audio** - Musical chord progressions and sound effects from code alone  
 **Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
 **Intuitive Controls** - Mouse-based electromagnetic field simulation  
-**Educational Value** - Learn 1s, 2s, 2p orbitals and quantum mechanical rules  
+**Educational Value** - Learn 1s, 2s, 2p-orbitals and quantum mechanical rules  
 **Visual Feedback** - Orbital labels, rule violations, particle systems under 13KB!
 
 ## How to Play 🎮
