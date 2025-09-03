@@ -4,22 +4,9 @@
 [![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://js13k-demo.vercel.app)
 [![JS13K Ready](https://img.shields.io/badge/JS13K-At%20Budget%20Limit-yellow?logo=webgl)](https://js13kgames.com/)
 
-> **SUCCESS!** Through massive optimization and "golfing" techniques, this game is now **JS13K compliant** at just **13.0KB zipped** (right at the 13KB limit). What started as a learning project became a fully optimized JS13K game demonstrating atomic physics education in minimal space.
-
 A physics-based puzzle game demonstrating real atomic structures through interactive orbital mechanics. Build authentic elements from Hydrogen to Nitrogen by guiding electrons into their proper electron shells using electromagnetic fields. Now fully optimized for JS13K competition constraints!
 
-## JS13K Optimization Achievements ⚡
-
-**From 72KB → 13.0KB (82% size reduction!)**
-
-- **Ultra-Golfed Classes**: `AudioSystem` → `A`, `OrbitalSystem` → `O`, `Electron` → `E`
-- **Method Compression**: `playSound()` → `p()`, `init()` → `i()`, `mute()` → `t()`
-- **Procedural Audio**: Eliminated all audio files, pure Web Audio API synthesis
-- **Build Optimization**: Single HTML file with inlined CSS/JS, aggressive compression
-- **Dead Code Elimination**: Removed unused utilities, consolidated systems
-- **Smart Golfing**: Maintained readability in source, compressed in build
-
-## Features (Fully Optimized) ✨
+## Features
 
 **Procedural Audio** - Musical chord progressions and sound effects from code alone  
 **Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
@@ -27,7 +14,7 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 **Educational Value** - Learn 1s, 2s, 2p-orbitals and quantum mechanical rules  
 **Visual Feedback** - Orbital labels, rule violations, particle systems under 13KB!
 
-## How to Play 🎮
+## How to Play
 
 - **Blue electrons (s-orbitals)** are attracted to your mouse cursor
 - **Orange electrons (p-orbitals)** are repelled by your mouse cursor
@@ -43,7 +30,7 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 - **Press 'ESC' for Tutorial** - Learn controls and quantum rules
 - **Press 'M' to toggle mute** - Experience procedural ambient music!
 
-## Educational Elements ⚛️
+## Educational Elements
 
 **Level 1: Hydrogen (H)** - Single electron in 1s orbital  
 **Level 2: Helium (He)** - Noble gas, complete K shell  
@@ -51,7 +38,7 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 **Level 4: Carbon (C)** - Basis of organic chemistry, forms 4 bonds  
 **Level 5: Nitrogen (N)** - Essential for proteins and DNA
 
-## Technical Architecture 🔧
+## Technical Architecture
 
 ### Golfed Classes (Source → Build)
 
@@ -60,14 +47,6 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 - `ElectronGolfed.js` → Class `E` (Particle physics)
 - `TutorialGolfed.js` → Class `T` (Educational overlay)
 - `GameGolfed.js` → Class `G` (Main game coordination)
-
-### Size Optimization Techniques
-
-- **Variable golfing**: `frequency` → `f`, `amplitude` → `a`
-- **Method shortening**: `playSound(index)` → `p(i)`
-- **String tables**: Repeated text compressed into arrays
-- **CSS elimination**: All styling moved to canvas drawing
-- **Build concatenation**: Single HTML file with everything inlined
 
 ## Development 💻
 
