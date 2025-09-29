@@ -49,7 +49,7 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 - `TutorialGolfed.js` → Class `T` (Educational overlay)
 - `GameGolfed.js` → Class `G` (Main game coordination)
 
-## Development 💻
+## Development
 
 ```bash
 npm run dev    # Development server on :8080
@@ -65,6 +65,20 @@ Compression: 47.1% reduction
 Estimated ZIP size: ~8.2 KB
 JS13K budget remaining: ~4.8 KB ✅
 ```
+
+## Post-Mortem
+
+**My first completed game!** This JS13K practice project taught me:
+
+- **Canvas 2D mastery** - Advanced particle systems, gradients, and visual effects without WebGL
+- **Code golf techniques** - Terser optimization achieving 47% compression ratio
+- **Procedural audio success** - Web Audio API generated all music and sound effects from code
+- **Educational game design** - Balancing scientific accuracy with engaging gameplay
+- **Community feedback value** - Playtesting revealed UX improvements that shaped my main JS13K entry
+
+**Key challenges:** Learning build tools (Terser, minification), working within single-file constraints, and translating quantum mechanics into intuitive mouse controls.
+
+**[Read the full post-mortem](https://www.aftongauntlett.com/blog/orbital-order-post-mortem)** for technical deep-dive, lessons learned, and AI tool usage insights.
 
 ---
 
