@@ -88,16 +88,26 @@ async function buildOptimized() {
     const beforeSection = htmlTemplate.substring(0, startIndex);
     const afterSection = htmlTemplate.substring(endIndex + endMarker.length);
 
+    // Find the actual minified class name for the main game
+    // Look for the class that has the constructor with gameCanvas
+    const gameClassMatch = minified.code.match(
+      /class\s+(\w+)\s*\{[^}]*getElementById\s*\(\s*['""]gameCanvas['""][^}]*\}/
+    );
+    const gameClassName = gameClassMatch ? gameClassMatch[1] : "G"; // fallback to G if not found
+
     const replacement = `<!-- All Combined & Minified JavaScript -->
   <script>
 ${minified.code}
 
 // Initialize the golfed game
-window.game = new G();
+window.game = new ${gameClassName}();
 window.tutorial = window.game.tutorial; // Make tutorial globally accessible
   </script>`;
 
-    const builtHtml = beforeSection + replacement + afterSection;
+    let builtHtml = beforeSection + replacement + afterSection;
+
+    // Replace any remaining references to the original class name with the minified one
+    builtHtml = builtHtml.replace(/new G\(\)/g, `new ${gameClassName}()`);
 
     // Ensure dist directory exists
     const distDir = path.join(__dirname, "../dist");
