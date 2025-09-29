@@ -17,5 +17,8 @@
     "physics"
   ],
   "author": "Afton Gauntlett",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.43.1"
+  }
 }

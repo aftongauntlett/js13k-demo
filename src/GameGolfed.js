@@ -37,18 +37,11 @@ class G {
     this.spawnParticles();
 
     this.c.addEventListener("click", async (e) => {
-      if (this.o.tip) {
-        this.o.tip = 0;
-        this.audio.p(5, 0.6);
-        if (this.o.checkComplete()) {
-          this.o.nextLevel();
-          this.spawn();
-        }
+      // If level completion display is showing, dismiss it
+      if (this.o.dismissLevelComplete()) {
         return;
       }
-      if (this.o.completionDelay > 0) {
-        return;
-      }
+
       if (this.o.checkComplete()) {
         this.o.nextLevel();
         this.spawn();
@@ -56,29 +49,38 @@ class G {
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        if (this.o.tip) {
-          this.o.tip = 0;
-        } else {
-          this.tutorial.v ? this.tutorial.hide() : this.tutorial.show();
-        }
-      } else if (e.key === "m" || e.key === "M") {
+      if (e.key === "m" || e.key === "M") {
         this.audio.t();
+      } else if (e.key === "i" || e.key === "I" || e.key === "?") {
+        this.tutorial.toggleHelp();
+      } else if (e.key === "Escape") {
+        // Close log if open, otherwise toggle help
+        if (this.tutorial.logVisible) {
+          this.tutorial.toggleLog();
+        } else {
+          this.tutorial.toggleHelp();
+        }
+      } else if (e.key === "l" || e.key === "L") {
+        this.tutorial.toggleLog();
       }
     });
 
     this.loop();
-
-    setTimeout(() => {
-      if (this.tutorial.shouldShow()) this.tutorial.show();
-    }, 1000);
   }
 
   spawn() {
     this.electrons = [];
     let types = [0, 1];
+    let hasBlue = false,
+      hasOrange = false;
+
     types.forEach((type) => {
       let count = this.o.o.filter((o) => o.type === type).length;
+      if (count > 0) {
+        if (type === 0) hasBlue = true;
+        if (type === 1) hasOrange = true;
+      }
+
       for (let i = 0; i < count; i++) {
         let x,
           y,
@@ -92,6 +94,10 @@ class G {
         this.electrons.push(new E(x, y, type, this.audio));
       }
     });
+
+    // Trigger tutorial events
+    if (hasBlue) this.tutorial.onBlueSpawn();
+    if (hasOrange) this.tutorial.onOrangeSpawn();
   }
 
   respawn(type) {
@@ -135,6 +141,10 @@ class G {
 
   update() {
     this.o.u();
+    this.tutorial.update();
+
+    // Don't update game physics when help is open
+    if (this.tutorial.isGamePaused()) return;
 
     for (let p of this.particles) {
       p.x += p.vx;
@@ -168,7 +178,8 @@ class G {
     }
     this.ctx.restore();
 
-    if (!this.o.tip) {
+    // Don't draw cursor effect when help is open
+    if (!this.tutorial.isGamePaused()) {
       let ctx = this.ctx;
       ctx.save();
       ctx.translate(this.input.mouse.x, this.input.mouse.y);
@@ -216,35 +227,31 @@ class G {
 
     this.o.d(this.ctx);
 
-    if (!this.o.tip) {
+    // Don't draw electrons when help is open or level completion is showing
+    if (!this.tutorial.isGamePaused() && !this.tutorial.shouldHideElectrons()) {
       for (let e of this.electrons) {
         e.d(this.ctx);
       }
     }
 
-    this.ctx.fillStyle = "rgba(255,255,255,.7)";
-    this.ctx.font = "12px monospace";
-    this.ctx.fillText(
-      "Blue (s) attracted to cursor, Orange (p) repelled | M:Mute ESC:Tutorial",
-      20,
-      580
-    );
+    // Render tutorial hints in front of orbitals and electrons
+    this.tutorial.render(this.ctx);
 
-    // Bottom right - Level info with infinite level support
-    this.ctx.textAlign = "right";
-    this.ctx.fillStyle = "rgba(100, 200, 255, 0.8)";
-    this.ctx.font = "14px monospace";
+    // Update HTML UI zones instead of drawing text on canvas
+    this.updateUI();
+  }
 
-    // Calculate total levels completed across all cycles
-    let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
-
-    if (this.o.cycle > 0) {
-      this.ctx.fillText(`Level: ${totalLevelsCompleted}`, 780, 580);
-    } else {
-      this.ctx.fillText(`Level: ${this.o.l + 1}/${this.o.L.length}`, 780, 580);
+  updateUI() {
+    // Update level info (bottom right)
+    const levelInfo = document.getElementById("levelInfo");
+    if (levelInfo) {
+      let totalLevelsCompleted = this.o.cycle * this.o.L.length + this.o.l + 1;
+      if (this.o.cycle > 0) {
+        levelInfo.textContent = `Level: ${totalLevelsCompleted}`;
+      } else {
+        levelInfo.textContent = `Level: ${this.o.l + 1}/${this.o.L.length}`;
+      }
     }
-
-    this.ctx.textAlign = "left";
   }
 
   loop() {
@@ -260,9 +267,5 @@ class G {
 
   stun(orb, playSound) {
     this.o.stun(orb, playSound);
-  }
-
-  canEnter(orb, x, y) {
-    return this.o.canEnter(orb, x, y);
   }
 }

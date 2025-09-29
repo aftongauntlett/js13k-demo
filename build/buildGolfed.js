@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { minify } = require("terser");
 
 // Read the HTML template
 const htmlTemplate = fs.readFileSync(
@@ -42,10 +43,91 @@ ${audioSystemJs}
 ${gameJs}
 `;
 
-// Replace the script tags in HTML with the combined JavaScript
-const builtHtml = htmlTemplate.replace(
-  /<!-- Component Scripts -->[\s\S]*?<!-- Game Initialization -->/,
-  `<!-- All Combined & Golfed JavaScript -->
+// Minify JavaScript with Terser
+async function buildOptimized() {
+  try {
+    const minified = await minify(allJs, {
+      mangle: {
+        toplevel: true,
+        properties: {
+          regex: /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
+        },
+      },
+      compress: {
+        passes: 3,
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ["console.log"],
+        unsafe: true,
+        unsafe_arrows: true,
+        unsafe_comps: true,
+        unsafe_math: true,
+        unsafe_proto: true,
+      },
+    });
+
+    if (minified.error) {
+      throw minified.error;
+    }
+
+    // Replace the script tags in HTML with the minified JavaScript
+
+    // Find the start and end markers more reliably
+    const startMarker = "<!-- Component Scripts -->";
+    const endMarker = "<!-- Game Initialization -->";
+
+    const startIndex = htmlTemplate.indexOf(startMarker);
+    const endIndex = htmlTemplate.indexOf(endMarker);
+
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error(
+        `Could not find HTML markers. Start: ${startIndex}, End: ${endIndex}`
+      );
+    }
+
+    const beforeSection = htmlTemplate.substring(0, startIndex);
+    const afterSection = htmlTemplate.substring(endIndex + endMarker.length);
+
+    const replacement = `<!-- All Combined & Minified JavaScript -->
+  <script>
+${minified.code}
+
+// Initialize the golfed game
+window.game = new G();
+window.tutorial = window.game.tutorial; // Make tutorial globally accessible
+  </script>`;
+
+    const builtHtml = beforeSection + replacement + afterSection;
+
+    // Write the built file
+    fs.writeFileSync(path.join(__dirname, "../dist/index.html"), builtHtml);
+
+    // Calculate sizes
+    const originalSize = htmlTemplate.length + allJs.length;
+    const builtSize = builtHtml.length;
+
+    console.log(
+      `Built file: ${builtSize} bytes (${(builtSize / 1024).toFixed(1)} KB)`
+    );
+    console.log(
+      `Compression: ${(
+        ((originalSize - builtSize) / originalSize) *
+        100
+      ).toFixed(1)}% reduction`
+    );
+
+    // Estimate ZIP size (rough approximation)
+    const estimatedZip = builtSize * 0.25; // Better compression with minification
+    console.log(`Estimated ZIP size: ~${(estimatedZip / 1024).toFixed(1)} KB`);
+    console.log(
+      `JS13K budget remaining: ~${(13 - estimatedZip / 1024).toFixed(1)} KB`
+    );
+  } catch (error) {
+    console.error("Minification failed:", error);
+    // Fallback to unminified
+    const builtHtml = htmlTemplate.replace(
+      /<!-- Component Scripts -->[\s\S]*?<!-- Game Initialization -->/,
+      `<!-- All Combined JavaScript (fallback) -->
   <script>
 ${allJs}
 
@@ -53,27 +135,9 @@ ${allJs}
 window.game = new G();
 window.tutorial = window.game.tutorial; // Make tutorial globally accessible
   </script>`
-);
+    );
+    fs.writeFileSync(path.join(__dirname, "../dist/index.html"), builtHtml);
+  }
+}
 
-// Write the built file
-fs.writeFileSync(path.join(__dirname, "../dist/index.html"), builtHtml);
-
-// Calculate sizes
-const originalSize = htmlTemplate.length + allJs.length;
-const builtSize = builtHtml.length;
-
-console.log(
-  `Built file: ${builtSize} bytes (${(builtSize / 1024).toFixed(1)} KB)`
-);
-console.log(
-  `Compression: ${(((originalSize - builtSize) / originalSize) * 100).toFixed(
-    1
-  )}% reduction`
-);
-
-// Estimate ZIP size (rough approximation)
-const estimatedZip = builtSize * 0.3; // JS/HTML compresses well
-console.log(`Estimated ZIP size: ~${(estimatedZip / 1024).toFixed(1)} KB`);
-console.log(
-  `JS13K budget remaining: ~${(13 - estimatedZip / 1024).toFixed(1)} KB`
-);
+buildOptimized();

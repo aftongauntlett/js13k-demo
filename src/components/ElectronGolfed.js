@@ -67,15 +67,31 @@ class E {
 
       if (dist < 25) {
         if (!orb.occupied && orb.stunned <= 0.1 && this.type === orb.type) {
-          if (game.canEnter(orb, this.x, this.y)) {
+          // Check electron configuration rules
+          if (game.o.followsElectronConfig(orb)) {
             orb.occupied = 1;
             this.captured = 1;
             orb.stunCount = 0;
+
+            // Tutorial callbacks for task completion
+            if (game.tutorial) {
+              game.tutorial.hideHint();
+              // Check if this was a blue electron (type 0) being captured
+              if (this.type === 0) {
+                game.tutorial.onBlueElectronCaptured();
+              }
+            }
+
             if (this.a?.c) {
               this.a.p(1, 0.5);
             }
             return;
           } else {
+            // Trigger hint for rule violation
+            if (game.tutorial) {
+              game.tutorial.onFullOrbital();
+            }
+
             let repelForce = 8;
             let repelX = ((this.x - orb.x) / dist) * repelForce;
             let repelY = ((this.y - orb.y) / dist) * repelForce;
@@ -142,8 +158,8 @@ class E {
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
-    if (this.x > 800 - r) {
-      this.x = 800 - r;
+    if (this.x > 1000 - r) {
+      this.x = 1000 - r;
       this.vx = -this.vx * 0.8;
       this.sound(speed, now);
     }
@@ -152,8 +168,8 @@ class E {
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
-    if (this.y > 600 - r) {
-      this.y = 600 - r;
+    if (this.y > 750 - r) {
+      this.y = 750 - r;
       this.vy = -this.vy * 0.8;
       this.sound(speed, now);
     }
