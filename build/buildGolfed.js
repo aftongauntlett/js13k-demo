@@ -99,6 +99,12 @@ window.tutorial = window.game.tutorial; // Make tutorial globally accessible
 
     const builtHtml = beforeSection + replacement + afterSection;
 
+    // Ensure dist directory exists
+    const distDir = path.join(__dirname, "../dist");
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true });
+    }
+
     // Write the built file
     fs.writeFileSync(path.join(__dirname, "../dist/index.html"), builtHtml);
 
@@ -136,6 +142,13 @@ window.game = new G();
 window.tutorial = window.game.tutorial; // Make tutorial globally accessible
   </script>`
     );
+
+    // Ensure dist directory exists
+    const distDir = path.join(__dirname, "../dist");
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true });
+    }
+
     fs.writeFileSync(path.join(__dirname, "../dist/index.html"), builtHtml);
   }
 }
