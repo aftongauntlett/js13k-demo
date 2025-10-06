@@ -11,13 +11,14 @@ class T {
       orange:
         "Orange p-electrons are repelled by your cursor. Nudge them carefully.",
       full: "Follow Aufbau principle: fill lower energy orbitals first.",
-      eject: "Hit occupied orbitals twice to eject electrons.",
+      eject:
+        "Hitting an occupied orbital twice will eject its electron as a penalty.",
       storms: "Storms push electrons around! Navigate them carefully.",
       help: [
         "• Blue s-electrons are attracted to cursor",
         "• Orange p-electrons are repelled by cursor",
         "• Follow Aufbau principle: fill lower energy orbitals first",
-        "• Hit occupied orbitals twice to eject electrons",
+        "• Hitting occupied orbitals twice ejects electrons (penalty)",
         "• Wrong color electrons bounce off target orbitals",
         "• Storms create navigation challenges",
       ],

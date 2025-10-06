@@ -21,9 +21,9 @@ A physics-based puzzle game demonstrating real atomic structures through interac
 - Guide electrons into matching colored orbitals to build atoms
 - Follow real electron configuration rules: 1s² → 2s² → 2p⁶
 - Orbitals glow red when they cannot accept electrons due to quantum rules
-- **Two-hit knockout system** - Click occupied orbitals twice to remove electrons
-  - First click: Orbital shakes with audio feedback
-  - Second click: Electron is ejected and bounces away
+- **Two-hit knockout penalty** - Hitting an occupied orbital twice ejects the electron
+  - First collision: Orbital shakes with audio feedback
+  - Second collision: Electron is ejected and orbital becomes temporarily inactive (grayed out)
 - Complete atoms by filling all orbitals according to the Aufbau principle
 - Learn real atomic structure: H (1s¹), He (1s²), Li (1s² 2s¹), C (1s² 2s² 2p²), N (1s² 2s² 2p³), O (1s² 2s² 2p⁴)
 - **Complete all 6 levels to earn a time achievement** - Your completion time is saved!
