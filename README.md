@@ -1,69 +1,75 @@
-# Orbital Order (Aufbau) - JS13K Practice
+# ⚛️ Orbital Order (Aufbau)
 
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/aftongauntlett/js13k-demo?logo=git)](https://github.com/aftongauntlett/js13k-demo/commits)
-[![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://js13k-demo.vercel.app)
-[![JS13K Ready](https://img.shields.io/badge/JS13K-Under%20Budget-green?logo=webgl)](https://js13kgames.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![js13k](https://img.shields.io/badge/js13k-practice-orange.svg)](https://js13kgames.com/)
+[![Size](https://img.shields.io/badge/size-8.2KB-brightgreen.svg)](#)
 
-A physics-based puzzle game demonstrating real atomic structures through interactive orbital mechanics. Build authentic elements from Hydrogen to Oxygen by guiding electrons into their proper electron shells using electromagnetic fields. Fully optimized for JS13K competition at ~8.2KB zipped!
+> _Build authentic elements from Hydrogen to Oxygen by guiding electrons into proper orbital shells using electromagnetic fields in this physics-based educational puzzle_
 
-## Features
+**[Play the game →](https://orbital-order.aftongauntlett.com/)**
 
-**Procedural Audio** - Musical chord progressions and sound effects from code alone  
-**Real Atomic Physics** - Accurate electron configuration following Aufbau principle  
-**Intuitive Controls** - Mouse-based electromagnetic field simulation  
-**Educational Value** - Learn 1s, 2s, 2p-orbitals and quantum mechanical rules  
-**Visual Feedback** - Orbital labels, rule violations, particle systems under 8.2KB!
+## About
 
-## How to Play
+A physics-based puzzle game demonstrating real atomic structures through interactive orbital mechanics. Master electron configuration rules to build elements while learning authentic quantum mechanics. Fully optimized for JS13K competition at ~8.2KB zipped!
 
-- **Blue s-electrons** are attracted to your mouse cursor
-- **Orange p-electrons** are repelled by your mouse cursor
-- Guide electrons into matching colored orbitals to build atoms
-- Follow real electron configuration rules: 1s² → 2s² → 2p⁶
-- Orbitals glow red when they cannot accept electrons due to quantum rules
-- **Two-hit knockout penalty** - Hitting an occupied orbital twice ejects the electron
-  - First collision: Orbital shakes with audio feedback
-  - Second collision: Electron is ejected and orbital becomes temporarily inactive (grayed out)
-- Complete atoms by filling all orbitals according to the Aufbau principle
-- Learn real atomic structure: H (1s¹), He (1s²), Li (1s² 2s¹), C (1s² 2s² 2p²), N (1s² 2s² 2p³), O (1s² 2s² 2p⁴)
-- **Complete all 6 levels to earn a time achievement** - Your completion time is saved!
-- **Press 'ESC' for Tutorial** - Learn controls and quantum rules
-- **Press 'M' to toggle mute** - Experience procedural ambient music!
+**Core Loop**: Attract s-electrons → Repel p-electrons → Follow Aufbau principle → Build atoms
 
-## Educational Elements
+## Quick Start
 
-**Level 1: Hydrogen (H)** - Single electron in 1s orbital  
-**Level 2: Helium (He)** - Noble gas, complete K shell  
-**Level 3: Lithium (Li)** - Alkali metal, reactive due to outer electron  
-**Level 4: Carbon (C)** - Basis of organic chemistry, forms 4 bonds  
-**Level 5: Nitrogen (N)** - Essential for proteins and DNA  
-**Level 6: Oxygen (O)** - Supports combustion, vital for life
+### Controls
 
-## Technical Architecture
+- **Mouse Movement**: Creates electromagnetic field
+- **Blue s-electrons**: Attracted to cursor
+- **Orange p-electrons**: Repelled by cursor
+- **ESC**: Toggle tutorial
+- **M**: Toggle audio
 
-### Golfed Classes (Source → Build)
+### Win Condition
 
-- `AudioSystemGolfed.js` → Class `A` (Procedural audio synthesis)
-- `OrbitalSystemGolfed.js` → Class `O` (Atomic physics simulation)
-- `ElectronGolfed.js` → Class `E` (Particle physics)
-- `TutorialGolfed.js` → Class `T` (Educational overlay)
-- `GameGolfed.js` → Class `G` (Main game coordination)
+Complete all 6 elements (H → He → Li → C → N → O) following electron configuration rules.
+
+## Key Features
+
+### Real Atomic Physics
+
+Accurate electron configuration following the Aufbau principle: 1s² → 2s² → 2p⁶
+
+### Quantum Rules System
+
+- Orbitals glow red when they cannot accept electrons
+- Fill lower energy orbitals first
+- Wrong color electrons bounce off orbitals
+
+### Two-Hit Knockout Penalty
+
+Hitting an occupied orbital twice ejects the electron as a penalty:
+
+- **First collision**: Orbital shakes with audio feedback
+- **Second collision**: Electron ejected, orbital temporarily inactive (grayed out)
+
+### Educational Elements
+
+**Level 1: Hydrogen (H)** - Simplest atom, makes up 75% of universe  
+**Level 2: Helium (He)** - Noble gas, never reacts, used in balloons  
+**Level 3: Lithium (Li)** - Lightest metal, used in phone batteries  
+**Level 4: Carbon (C)** - Forms 4 bonds, base of all life on Earth  
+**Level 5: Nitrogen (N)** - Essential for DNA, makes up 78% of air  
+**Level 6: Oxygen (O)** - Supports combustion, 21% of Earth's atmosphere
+
+## Technical Details
+
+- **Engine**: Vanilla JavaScript + Canvas 2D
+- **Features**: Particle systems, procedural audio, dynamic physics simulation
+- **Performance**: 60fps with real-time electron interactions
+- **Size**: ~8.2KB zipped (JS13K practice)
+- **Architecture**: Class-based with code golf optimization (Classes A, O, E, T, G)
 
 ## Development
 
 ```bash
-npm run dev    # Development server on :8080
-npm run build  # Build optimized game (~8.2KB zipped)
-npm run size   # Check current size (alias for build)
-```
-
-### Build Output
-
-```
-Built file: 33587 bytes (32.8 KB)
-Compression: 47.1% reduction
-Estimated ZIP size: ~8.2 KB
-JS13K budget remaining: ~4.8 KB ✅
+npm install  # Install dependencies
+npm run dev  # Development server on :8080
+npm run build # Production build (~8.2KB zipped)
 ```
 
 ## Post-Mortem
@@ -82,4 +88,4 @@ JS13K budget remaining: ~4.8 KB ✅
 
 ---
 
-Built with ✨ by [Afton Gauntlett](https://github.com/aftongauntlett) • Senior Frontend Engineer
+MIT License - Built with ✨ by [Afton Gauntlett](https://github.com/aftongauntlett)
