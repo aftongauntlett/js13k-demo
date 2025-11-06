@@ -3,321 +3,98 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![js13k](https://img.shields.io/badge/js13k-practice-orange.svg)](https://js13kgames.com/)
 [![Size](https://img.shields.io/badge/size-8.2KB-brightgreen.svg)](#)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/t/aftongauntlett/js13k-demo)
 
-> A physics-based puzzle game built with vanilla JavaScript and Canvas 2D. Guide electrons into atomic orbitals following the Aufbau principle while staying under the 13KB JS13K size limit.
+A physics puzzle game where you guide electrons into atomic orbitals using electromagnetic attraction and repulsion. Built for JS13K competition practice with vanilla JavaScript and Canvas 2D.
 
-**Tech Stack:** Vanilla JS • Canvas 2D • Web Audio API • Terser
+**[Play the game →](https://orbital-order.aftongauntlett.com/) | [Post-Mortem →](http://aftongauntlett.com/blog/orbital-order-post-mortem)**
 
-**[Play the game →](https://orbital-order.aftongauntlett.com/)** | **[View Source →](https://github.com/aftongauntlett/js13k-demo)**
+**Stack:** Vanilla JS • Canvas 2D • Web Audio API • Terser
 
----
+## What This Is
 
-## Table of Contents
+This started as warm-up for JS13K 2025. I wanted to practice building under extreme size constraints while finishing something polished.
 
-- [Motivation](#motivation)
-- [Game Overview](#game-overview)
-- [Technical Architecture & Implementation](#technical-architecture--implementation)
-  - [Project Structure](#project-structure)
-  - [Core Systems](#core-systems)
-  - [Libraries & Tools](#libraries--tools)
-  - [Build Process & Optimization](#build-process--optimization)
-- [Accessibility & UX Considerations](#accessibility--ux-considerations)
-- [Build & Deployment Instructions](#build--deployment-instructions)
-- [Challenges & Lessons Learned](#challenges--lessons-learned)
-- [What's Next](#whats-next)
+The concept came from experiments with attraction/repulsion physics. Blue s-electrons follow your cursor, orange p-electrons run from it. Fill orbitals following real atomic structure rules. Hit an occupied orbital twice and the electron gets ejected. Six elements, from hydrogen to oxygen.
 
----
+The visuals reminded me of electron shells, so I leaned into the atomic theme. Final size is 8.2KB zipped.
 
-## Motivation
+## Technical Overview
 
-This project began as a warm-up for the JS13K 2025 competition. I wanted to practice working within extreme size constraints while building something complete, polished, and educational. The concept emerged from experimenting with attraction/repulsion mechanics—what started as a lightning prototype evolved into an atomic orbital theme after the visual elements naturally resembled electron shells.
+Single-file architecture with five classes (G, E, O, A, T). Custom build script concatenates source, minifies with Terser, and inlines everything into one HTML file. 47% compression from 47KB source to 25KB minified.
 
-**Key Goals:**
+**Core systems:**
 
-- Master Canvas 2D rendering and particle systems
-- Learn aggressive code optimization and build tooling (Terser, minification)
-- Implement procedural audio using only Web Audio API
-- Practice scoping and finishing a small project end-to-end
+- **Game (G):** Canvas setup, input handling, game loop
+- **Electron (E):** Physics simulation for attraction/repulsion
+- **Orbital (O):** Level data, Aufbau validation, collision detection
+- **Audio (A):** Procedural sound from Web Audio API
+- **Tutorial (T):** Event-driven hints that appear during play
 
----
+All sound generated from code. No assets, no libraries. Canvas 2D for rendering, Web Audio for effects.
 
-## Game Overview
+**Build pipeline:** Node script reads source files, Terser minifies with property mangling and 3-pass compression. Unsafe optimizations enabled (arrows, math, prototypes). Output is single HTML file under 13KB zipped.
 
-**Players guide electrons into atomic orbitals by creating electromagnetic fields with mouse movement.** Blue s-electrons are attracted to the cursor while orange p-electrons are repelled. Complete 6 elements (H → He → Li → C → N → O) by filling orbitals following the Aufbau principle (1s² → 2s² → 2p⁶). A two-hit knockout penalty system adds precision challenge—hit an occupied orbital twice and the electron ejects.
-
----
-
-## Technical Architecture & Implementation
-
-**Single-file architecture with class-based vanilla JavaScript, aggressive Terser minification, and procedural audio—optimized from 47KB source to 8.2KB zipped.**
-
-### Project Structure
-
-```
-js13k-demo/
-├── src/
-│   ├── index.html                      # Single-file HTML template with inline CSS
-│   ├── GameGolfed.js                   # Main game loop and coordination (class G)
-│   ├── components/
-│   │   ├── ElectronGolfed.js           # Electron physics and collision logic (class E)
-│   │   └── TutorialGolfed.js           # Interactive tutorial system (class T)
-│   └── systems/
-│       ├── OrbitalSystemGolfed.js      # Orbital rendering and level data (class O)
-│       └── AudioSystemGolfed.js        # Procedural audio engine (class A)
-├── build/
-│   └── buildGolfed.js                  # Build script: concatenate, minify, inline
-├── dist/
-│   └── index.html                      # Single-file production build (~8.2KB zipped)
-├── package.json                        # Dependencies and scripts
-└── vercel.json                         # Deployment configuration
-```
-
-### Core Systems
-
-**Five single-letter classes handle game logic, physics, rendering, audio, and tutorial interactions.**
-
-#### **Class G (GameGolfed.js)** - Main Game Controller
-
-- Canvas initialization and input event handling
-- Game loop with requestAnimationFrame
-- Electron spawning and particle system management
-- Keyboard shortcuts (M for audio toggle, ESC for tutorial)
-- Coordinates between orbital system, audio system, and tutorial
-
-#### **Class E (ElectronGolfed.js)** - Electron Physics
-
-- Position, velocity, and type (s-orbital or p-orbital)
-- Attraction/repulsion forces based on mouse position
-- Collision detection with orbitals
-- Visual rendering with glow effects and trails
-
-#### **Class O (OrbitalSystemGolfed.js)** - Orbital System
-
-- Level data encoding: element name, atomic number, mass, symbol
-- Orbital position, radius, and type configuration
-- Aufbau principle validation (lower energy levels fill first)
-- Orbital state rendering (empty, filled, rejected, shaking)
-- Level transition and completion logic
-
-#### **Class A (AudioSystemGolfed.js)** - Procedural Audio
-
-- Web Audio API integration with no external sound files
-- Buffer-based sound synthesis (sine waves, noise, sawtooth)
-- Envelope generation (attack, release) for each sound effect
-- Audio context initialization on user interaction (browser requirement)
-- Delay and feedback nodes for ambient background music
-
-#### **Class T (TutorialGolfed.js)** - Tutorial System
-
-- Interactive tutorial triggered by game events (electron spawn, orbital interactions)
-- Context-sensitive help messages
-- Non-intrusive overlay with dismissible prompts
-
-### Libraries & Tools
-
-**Zero external libraries for runtime—only build-time dependencies for minification and local development.**
-
-| Tool                   | Purpose                 | Justification                                                                                                       |
-| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Terser**             | JavaScript minification | Aggressive compression with 3-pass optimization, property mangling, and unsafe transforms. Achieved ~47% reduction. |
-| **Python http.server** | Development server      | Zero-dependency local server for testing. No build tools needed during development.                                 |
-| **Canvas 2D API**      | Rendering               | Lightweight alternative to WebGL. Sufficient for 2D particle effects, gradients, and compositing.                   |
-| **Web Audio API**      | Procedural audio        | Generates all sound effects from code—no audio files needed. Saves significant bytes.                               |
-
-### Build Process & Optimization
-
-**Custom Node.js build script concatenates source files, minifies with Terser (3-pass compression, property mangling), and inlines everything into a single HTML file.**
+## Development
 
 ```bash
-npm run build
-```
-
-**Build Steps:**
-
-1. Read all source JavaScript files from `src/`
-2. Concatenate in dependency order (components → systems → game)
-3. Minify with Terser:
-   - Top-level and property mangling
-   - 3-pass compression
-   - Remove console.log and debugger statements
-   - Enable unsafe optimizations (arrows, math, prototypes)
-4. Inject minified JS into HTML template between markers
-5. Output single `dist/index.html` file
-
-**Compression Results:**
-
-- **Original source:** ~47KB
-- **Minified output:** ~25KB uncompressed
-- **Gzipped size:** ~8.2KB (fits well under 13KB limit)
-- **Compression ratio:** 47% reduction
-
-**Key Optimization Techniques:**
-
-- Single-letter class names (G, E, O, A, T) to reduce identifier length
-- Property name mangling for all internal methods
-- Reused mathematical constants (e.g., `PI2 = 6.28` instead of `Math.PI * 2`)
-- Inline styles and SVG favicon (no external resources)
-- Canvas state management with save/restore to minimize API calls
-
----
-
-## Accessibility & UX Considerations
-
-**Interactive tutorial system and visual feedback prioritize discoverability, but color dependency and custom cursor present accessibility challenges.**
-
-### Interaction Design
-
-- **Tutorial system:** Interactive, event-driven help instead of walls of text. Players learn by doing.
-- **Visual feedback:** Orbitals glow red when invalid, shake on collision, gray out when ejected.
-- **Audio cues:** Optional sound effects for capture, rejection, and collisions. Toggled with 'M' key.
-- **Seamless transitions:** Level changes happen in-place without pausing gameplay flow.
-
-### Accessibility Notes
-
-- **Cursor visibility:** Custom cursor (none) with visual field representation. May be difficult for users with motor impairments.
-- **Color dependency:** Blue/orange distinction critical for gameplay. Not colorblind-friendly.
-- **Audio:** Optional and can be muted. Does not convey essential information.
-- **Keyboard controls:** ESC and M keys for tutorial/audio toggles.
-
-**Future Improvements:** Add colorblind mode (pattern/texture differentiation), improve cursor visibility options, add alternative input methods.
-
----
-
-## Build & Deployment Instructions
-
-**Simple setup with Node.js for minification and Python for local development server—no complex toolchains required.**
-
-### Local Development
-
-**Requirements:**
-
-- Node.js (for Terser)
-- Python 3 (for local server)
-
-**Setup:**
-
-```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/aftongauntlett/js13k-demo.git
 cd js13k-demo
-
-# Install dependencies
 npm install
 
-# Start development server
+# Run dev server
 npm run dev
-```
+# Opens at localhost:8080
 
-Open [http://localhost:8080](http://localhost:8080) in your browser.
-
-**Development Mode Features:**
-
-- Unminified source for debugging
-- Live reload (manual refresh)
-- Full console logging
-
-### Production Build
-
-```bash
-# Build optimized single-file output
+# Build production
 npm run build
-
-# Output: dist/index.html (~8.2KB zipped)
+# Output: dist/index.html
 ```
 
-**Test the production build:**
+Requirements: Node.js, Python 3 (for dev server).
 
-```bash
-# Serve from dist/ directory
-python3 -m http.server 8080 --directory dist
+## Project Structure
+
+```
+src/
+├── index.html              # HTML template with inline CSS
+├── GameGolfed.js           # Main game loop (class G)
+├── components/
+│   ├── ElectronGolfed.js   # Particle physics (class E)
+│   └── TutorialGolfed.js   # Interactive hints (class T)
+└── systems/
+    ├── OrbitalSystemGolfed.js   # Level data and validation (class O)
+    └── AudioSystemGolfed.js     # Procedural sound (class A)
 ```
 
-### JS13K Submission Preparation
+## Challenges and Lessons
 
-```bash
-# Create ZIP for contest submission
-cd dist
-zip -9 submission.zip index.html
+- **Size constraints are clarifying.** No room for waste. Every feature justified its byte cost. Led to procedural audio and single-file architecture.
 
-# Check size
-ls -lh submission.zip
-# Should be under 13KB (13,312 bytes)
-```
+- **Terser property mangling broke things.** Took trial and error to learn which patterns are safe. 3-pass compression gave diminishing returns but saved a few hundred bytes.
 
-**Deployment:**
+- **Canvas state management needs discipline.** Early bugs from improperly nested save/restore calls. Treating transforms as a stack fixed rendering issues.
 
-- Static hosting (Vercel, Netlify, GitHub Pages)
-- Single HTML file—no build step required on server
-- Configured via `vercel.json` for SPA routing
+- **Procedural audio takes iteration.** Raw waveforms sound harsh. Envelope shaping (attack/release) made tones smooth. Delay nodes added ambient texture.
 
----
+- **Scope control matters.** I cut an infinite mode that caused state bugs. Better to ship six polished levels than six levels plus broken extras.
 
-## Challenges & Lessons Learned
+- **Playtesting changed the UX.** Early version had modal cards between levels. Testers found them jarring, so I made transitions seamless. Interactive tutorial replaced static intro after people skipped it.
 
-**This was my first complete game project and first time working with JS13K constraints—key insights around size optimization, build tooling, Canvas rendering, and procedural audio generation.**
+## Accessibility
 
-<details>
-<summary><strong>Technical Challenges (click to expand)</strong></summary>
+Interactive tutorial appears during play. Visual feedback shows valid/invalid moves (red glow, shaking). Audio is optional (M key to mute).
 
-### 1. Size Constraints Are Liberating
-
-Working under 13KB forced ruthless prioritization. No libraries, no frameworks, no waste. Every feature had to justify its byte cost. This constraint led to creative solutions like procedural audio and single-file architecture.
-
-### 2. Terser Configuration is an Art
-
-Achieving 47% compression required experimentation with Terser's unsafe optimizations. Property mangling broke the game several times until I understood which patterns were safe. The 3-pass compression setting provided diminishing returns but saved a few hundred bytes.
-
-### 3. Canvas State Management
-
-Early versions had rendering bugs from improperly nested save/restore calls. Learning to treat Canvas transforms and styles as a stack clarified the rendering pipeline and improved performance.
-
-### 4. Procedural Audio is Hard
-
-Generating pleasant-sounding effects from raw waveforms took iteration. Envelope shaping (attack/release) made the difference between harsh beeps and smooth tones. Delay/feedback nodes added ambient depth without additional bytes.
-
-### 5. Build Tool Integration
-
-First time setting up a custom build script. Understanding how to parse HTML markers, inject code, and preserve script context taught me practical build pipeline design.
-
-</details>
-
-<details>
-<summary><strong>Development Insights (click to expand)</strong></summary>
-
-### Scope Control Matters
-
-Finishing a small project completely is more valuable than abandoning a large one. I cut an infinite mode feature that caused state pollution—better to ship 6 polished levels than 6 levels plus a buggy bonus mode.
-
-### Player Feedback Shapes UX
-
-Early testers found level transitions jarring. Removing modal cards and making transitions seamless dramatically improved flow. The interactive tutorial replaced static instructions after playtesters skipped the original intro screen.
-
-### AI as Research Assistant
-
-Copilot helped with boilerplate and syntax. ChatGPT accelerated research into Web Audio API and Terser configuration. I still had to debug, refactor, and validate everything—AI shortened the path from idea to prototype but didn't remove the engineering work.
-
-### What I'd Do Differently
-
-- **Start with compression in mind:** Writing minification-friendly code from the start (shorter names, fewer properties) would have saved refactoring time.
-- **Add unit tests:** Even simple tests for orbital validation logic would have caught bugs earlier.
-- **Accessibility first:** Building colorblind support from the beginning is easier than retrofitting it.
-
-</details>
-
----
+Limitations: Custom cursor may be hard for some users. Blue/orange distinction is not colorblind-friendly. No alternative input methods yet.
 
 ## What's Next
 
-**Potential enhancements include additional elements, competitive features, and improved accessibility.**
-
-- Add levels up to Neon (element 10) or beyond
-- Leaderboard with completion time tracking
-- Colorblind-friendly visual modes (patterns/textures)
+- More elements (up to Neon or beyond)
+- Leaderboard with completion times
+- Colorblind mode (patterns/textures)
 - Mobile touch controls
-- Expanded tutorial covering real-world atomic applications
 
 ---
 
----
-
-MIT License - Built with ✨ by [Afton Gauntlett](https://github.com/aftongauntlett)
+MIT License • [Afton Gauntlett](https://github.com/aftongauntlett)
