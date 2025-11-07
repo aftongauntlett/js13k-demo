@@ -97,4 +97,4 @@ Limitations: Custom cursor may be hard for some users. Blue/orange distinction i
 
 ---
 
-MIT License • [Afton Gauntlett](https://github.com/aftongauntlett)
+MIT License. Built by [Afton Gauntlett](https://www.aftongauntlett.com/).
