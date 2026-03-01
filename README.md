@@ -7,7 +7,7 @@
 
 A physics puzzle game where you guide electrons into atomic orbitals using electromagnetic attraction and repulsion. Built for JS13K competition practice with vanilla JavaScript and Canvas 2D.
 
-**[Play the game →](https://orbital-order.aftongauntlett.com/) | [Post-Mortem →](http://aftongauntlett.com/blog/orbital-order-post-mortem)**
+**[Play the game →](https://orbital-order.aftongauntlett.com/)
 
 **Stack:** Vanilla JS • Canvas 2D • Web Audio API • Terser
 
